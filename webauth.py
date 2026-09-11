@@ -1,4 +1,4 @@
-"""Phiên người dùng + đăng nhập Microsoft cho bản web của DBV Analytics Engine.
+"""Phiên người dùng + đăng nhập Microsoft cho DBV Analytics Engine.
 
 Mỗi trình duyệt có một phiên riêng (cookie dbv_sid), giữ token cache MSAL riêng và toàn bộ trạng thái
 phân tích riêng (dữ liệu đã nạp, cache heatmap...). Token Fabric của phiên được đưa vào fabric_extract
@@ -7,7 +7,8 @@ qua ContextVar, nên mọi truy vấn DAX chạy dưới đúng tài khoản c�
 Hai cách đăng nhập, cùng ghi vào token cache của phiên:
   - Authorization-code + PKCE (chuẩn cho web): /auth/login -> Microsoft -> /auth/callback. Cần IT đăng
     ký redirect URI (xem hướng dẫn trong TIEN_DO_PHIEN_LAM_VIEC.md).
-  - Device code (giữ lại để thử trên máy khi chưa có redirect URI): /api/fabric_login_start + _wait.
+  - Device code (dự phòng khi redirect URI chưa đăng ký, hoặc máy không mở được trình duyệt mặc
+    định): /api/fabric_login_start + _wait.
 """
 import contextvars
 import os
@@ -21,11 +22,11 @@ import msal
 
 SESSION_COOKIE = "dbv_sid"
 SESSION_IDLE_SECONDS = 12 * 3600
-BASE_URL = os.environ.get("DBV_BASE_URL", "http://localhost:8787").rstrip("/")
-HOSTED = bool(os.environ.get("DBV_BASE_URL"))
-LOGIN_REQUIRED = os.environ.get("DBV_LOGIN_REQUIRED", "1" if HOSTED else "0") == "1"
+# App chạy trên máy của từng người: luôn là localhost. Cổng đổi được (biến PORT) khi 8787 bận, nhưng
+# đổi cổng thì phải đăng ký thêm redirect URI tương ứng bên Entra ID.
+PORT = int(os.environ.get("PORT", "8787"))
+BASE_URL = f"http://localhost:{PORT}"
 REDIRECT_URI = BASE_URL + "/auth/callback"
-COOKIE_SECURE = BASE_URL.startswith("https://")
 
 _SESSIONS = {}
 _LOCK = threading.Lock()
@@ -67,11 +68,8 @@ def get_or_create(cookie_header):
 
 
 def cookie_header_value(sess):
-    parts = [f"{SESSION_COOKIE}={sess['sid']}", "Path=/", "HttpOnly", "SameSite=Lax",
-             f"Max-Age={SESSION_IDLE_SECONDS}"]
-    if COOKIE_SECURE:
-        parts.append("Secure")
-    return "; ".join(parts)
+    return "; ".join([f"{SESSION_COOKIE}={sess['sid']}", "Path=/", "HttpOnly", "SameSite=Lax",
+                      f"Max-Age={SESSION_IDLE_SECONDS}"])
 
 
 def bind(sess):

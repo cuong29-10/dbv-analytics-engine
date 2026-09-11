@@ -207,6 +207,30 @@ Impact Segment". Ba nguồn CSV/Cache/Kéo-về không thể có trên bản tĩ
 **Cần IT thêm redirect URI kiểu Single-page application** (khác kiểu Mobile and desktop đã đăng ký cho
 bản Python): `http://localhost:8788/` để test trên máy và `https://<domain-netlify>/` sau khi deploy.
 
+### 3.2f. QUAY LẠI hướng app trên máy từng người (11/09/2026) — TRẠNG THÁI HIỆN TẠI
+Bỏ hướng host tập trung. Lý do thực tế: Render Free bắt xác minh thẻ, Hugging Face chỉ còn Static là
+miễn phí, Netlify không chạy được backend Python. Người dùng chốt: **mỗi người cài app trên máy mình**,
+đăng nhập bằng chính tài khoản Power BI được phân quyền, Fabric tự áp RLS.
+
+`server.py` + `ui.html` trở lại đúng mô hình app cục bộ:
+- Bỏ `HOSTED` / `DBV_BASE_URL` / `DBV_LOGIN_REQUIRED`. `webauth.BASE_URL` luôn là
+  `http://localhost:<PORT>`, redirect URI luôn `http://localhost:8787/auth/callback` (IT đã đăng ký).
+  Đổi cổng qua biến `PORT` thì phải đăng ký thêm redirect URI tương ứng.
+- Bỏ cổng chặn đăng nhập toàn cục: **CSV và Cache dùng được ngay không cần tài khoản Microsoft**, chỉ
+  nhóm route Fabric mới đòi token của phiên. Đã kiểm: nạp cache khi chưa đăng nhập ra 881.068 hợp đồng,
+  còn `fabric_live_analyze` trả đúng lỗi "Chưa đăng nhập Fabric".
+- `run_web()` đổi tên thành `run_local()`: chỉ nghe loopback (cả 127.0.0.1 và ::1), **tự mở trình duyệt**
+  khi khởi động, in hướng dẫn đừng đóng cửa sổ console.
+- Thứ tự thẻ nguồn ở Bước 1: Live Fabric (mặc định, có vệt sáng) → SQL Server → CSV → Kéo Fabric về →
+  Cache. Chữ "máy chủ" đổi hết thành "máy này".
+
+Bản web tĩnh trong `app/web/` **vẫn giữ nguyên, không xoá**, coi như nhánh dự phòng nếu sau này có nhu
+cầu host thật. Nó độc lập hoàn toàn với bản Python và đã được kiểm chứng khớp số (mục 3.2e).
+
+**Còn lại cho bản local**: người dùng tự test luồng đăng nhập Microsoft thật trên máy; sau khi hài lòng
+thì đóng gói `.exe` (mục 4.2 — khi build nhớ `.gitignore`/`.dockerignore` không áp cho PyInstaller,
+phải kiểm tra file nhạy cảm bằng tay).
+
 ### 3.3. Chưa làm / chờ
 1. **IT đăng ký redirect URI** (Phần 3.4). Chưa có thì nút "Đăng nhập Microsoft" sẽ bị Microsoft báo lỗi
    `AADSTS50011`; trên máy tạm dùng nút "Đăng nhập bằng mã (thử trên máy)".

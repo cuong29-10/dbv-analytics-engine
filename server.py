@@ -106,11 +106,10 @@ except ImportError:
     else:
         print("[pipeline] khong nap duoc p2_prep.py trong ban dong goi.", flush=True)
 
-# ------------------------------------------------------------ phiên & quyền
-# Bản web: mỗi trình duyệt một phiên (cookie), đăng nhập bằng tài khoản Microsoft của chính người đó
-# (xem webauth.py). Không còn token owner/guest trong link.
-OPEN_PATHS = {"/api/status", "/api/fabric_status", "/api/fabric_login_start", "/api/fabric_login_wait",
-              "/api/fabric_logout"}
+# ------------------------------------------------------------ phiên
+# Mỗi trình duyệt một phiên (cookie dbv_sid), đăng nhập bằng tài khoản Microsoft của chính người dùng
+# (xem webauth.py). Các nguồn CSV/Cache không cần tài khoản; riêng nhóm route Fabric tự kiểm tra token
+# của phiên qua fabric_token(), nên Power BI luôn áp đúng phân quyền dữ liệu của người đang đăng nhập.
 
 
 STORE = WA.SessionScoped("store", lambda: {"pol": None, "clm": None, "source": None, "loadedAt": None,
@@ -302,7 +301,7 @@ def load_pipeline_data():
     polp = os.path.join(DATA_DIR, "clean_policy.parquet")
     clmp = os.path.join(DATA_DIR, "clean_claims.parquet")
     if not (os.path.isfile(polp) and os.path.isfile(clmp)):
-        raise FileNotFoundError("Máy chủ chưa có dữ liệu cache (clean_policy.parquet / clean_claims.parquet). "
+        raise FileNotFoundError("Máy này chưa có dữ liệu cache (clean_policy.parquet / clean_claims.parquet). "
                                  "Dùng Live Fabric, hoặc 'Kéo dữ liệu từ Microsoft Fabric về' để tạo cache lần đầu.")
     return _finish_dims(pd.read_parquet(polp), pd.read_parquet(clmp))
 
@@ -1563,8 +1562,7 @@ def h_fabric_status(_body):
     if not FABRIC:
         return {"available": False}
     try:
-        return {"available": True, "account": fabric_account(), "loginUrl": "/auth/login",
-                "deviceFlowAllowed": not WA.HOSTED}
+        return {"available": True, "account": fabric_account(), "loginUrl": "/auth/login"}
     except Exception as e:  # noqa: BLE001
         return {"available": True, "configError": str(e)}
 
@@ -1573,8 +1571,6 @@ def h_fabric_login_start(_body):
     """Device code flow, chỉ mở khi chạy trên máy (chưa có redirect URI). Ghi vào token cache của phiên."""
     if not FABRIC:
         return {"error": "Máy này chưa cài đặt kết nối Fabric (thiếu fabric_extract.py hoặc msal)."}
-    if WA.HOSTED:
-        return {"error": "Bản web đăng nhập qua trang Microsoft (nút Đăng nhập Microsoft)."}
     try:
         flow = WA.device_start(FABRIC, WA.current())
     except Exception as e:  # noqa: BLE001
@@ -1723,14 +1719,6 @@ class Handler(BaseHTTPRequestHandler):
             if ctx_tok is not None:
                 FABRIC.SESSION_TOKEN.reset(ctx_tok)
 
-    def _logged_in(self):
-        if STANDALONE or not WA.LOGIN_REQUIRED:
-            return True
-        try:
-            return bool(FABRIC and fabric_account())
-        except Exception:  # noqa: BLE001
-            return False
-
     def do_GET(self):
         ctx = self._open_session()
         try:
@@ -1785,8 +1773,7 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:  # noqa: BLE001
                 account = None
             out = {
-                "standalone": STANDALONE, "hosted": WA.HOSTED, "loginRequired": WA.LOGIN_REQUIRED,
-                "account": account, "loggedIn": self._logged_in(),
+                "standalone": STANDALONE, "account": account,
                 "source": STORE["source"], "loadedAt": STORE["loadedAt"],
                 "hasData": STORE["pol"] is not None and STORE["clm"] is not None,
                 "pipelineDataExists": os.path.isfile(os.path.join(DATA_DIR, "clean_policy.parquet")),
@@ -1795,8 +1782,6 @@ class Handler(BaseHTTPRequestHandler):
             if STORE.get("lastValidate"):
                 out["lastValidate"] = STORE["lastValidate"]
             self._send_json(out)
-        elif not self._logged_in():
-            self._send_json({"error": "Cần đăng nhập Microsoft trước."}, code=401)
         elif path == "/api/decompose_export":
             h_decompose_export(self, token, qs)
         elif path == "/api/fabric_live_decompose_export":
@@ -1825,9 +1810,6 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(raw.decode("utf-8"))
         except Exception as e:  # noqa: BLE001
             self._send_json({"error": f"{type(e).__name__}: {e}"})
-            return
-        if self.path not in OPEN_PATHS and not self._logged_in():
-            self._send_json({"error": "Cần đăng nhập Microsoft trước."}, code=401)
             return
         try:
             result = self._with_fabric_token(lambda: fn(body))
@@ -1873,26 +1855,22 @@ def run_standalone():
         pass
 
 
-def run_web():
-    """Bản web: chạy trên máy (localhost) hay trên host đều cùng một đường. Trên host: PORT và
-    DBV_BASE_URL do nền tảng/biến môi trường đặt, mọi request /api cần đăng nhập Microsoft."""
-    if WA.HOSTED:
-        srv = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
-    else:
-        # Windows phân giải "localhost" sang ::1 TRƯỚC 127.0.0.1. Chỉ nghe IPv4 thì mỗi request phải
-        # chờ IPv6 thất bại rồi mới thử lại — đo được 2,05 giây/request so với 0,03 giây khi gọi thẳng
-        # 127.0.0.1. Redirect URI đã đăng ký với Entra ID là localhost nên phải nghe cả hai, mỗi họ địa
-        # chỉ một socket riêng, vẫn chỉ loopback (máy khác trong mạng không vào được).
-        srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
-        srv6 = ThreadingHTTPServer6(("::1", PORT), Handler)
-        threading.Thread(target=srv6.serve_forever, daemon=True).start()
+def run_local():
+    """App chạy trên máy của từng người: chỉ nghe loopback, tự mở trình duyệt. Mỗi người đăng nhập
+    bằng tài khoản Power BI của chính mình nên Fabric áp đúng phân quyền dữ liệu của họ."""
+    # Windows phân giải "localhost" sang ::1 TRƯỚC 127.0.0.1. Chỉ nghe IPv4 thì mỗi request phải chờ
+    # IPv6 thất bại rồi mới thử lại — đo được 2,05 giây/request so với 0,03 giây khi gọi thẳng
+    # 127.0.0.1. Redirect URI đăng ký với Entra ID là localhost nên phải nghe cả hai, mỗi họ địa chỉ
+    # một socket riêng, vẫn chỉ loopback: máy khác trong mạng không vào được.
+    srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+    srv6 = ThreadingHTTPServer6(("::1", PORT), Handler)
+    threading.Thread(target=srv6.serve_forever, daemon=True).start()
     print("=" * 70, flush=True)
-    print(f"DBV Analytics Engine (web) dang chay - PORT {PORT}", flush=True)
-    print(f"  Dia chi: {WA.BASE_URL}/", flush=True)
-    print(f"  Redirect URI dang ky voi Entra ID: {WA.REDIRECT_URI}", flush=True)
-    print(f"  Bat buoc dang nhap: {'co' if WA.LOGIN_REQUIRED else 'khong (dat DBV_LOGIN_REQUIRED=1 de bat)'}",
-          flush=True)
+    print("DBV Analytics Engine", flush=True)
+    print(f"  Mo trinh duyet tai: {WA.BASE_URL}/", flush=True)
+    print("  DUNG dong cua so nay khi con dung app - dong lai la tat app.", flush=True)
     print("=" * 70, flush=True)
+    threading.Timer(1.0, lambda: webbrowser.open(WA.BASE_URL + "/")).start()
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
@@ -1903,4 +1881,4 @@ if __name__ == "__main__":
     if STANDALONE:
         run_standalone()
     else:
-        run_web()
+        run_local()

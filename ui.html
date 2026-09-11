@@ -410,7 +410,7 @@ table.dict td.opt{color:var(--muted)}
 
     <div class="card" id="ownerDataCard">
       <h2>Chọn nguồn dữ liệu</h2>
-      <div class="sub" style="margin-bottom:12px">Mỗi người dùng có phiên riêng: dữ liệu bạn nạp hay truy vấn chỉ nằm trong phiên của bạn.</div>
+      <div class="sub" style="margin-bottom:12px">App chạy trên máy này. Dữ liệu bạn nạp hay truy vấn không rời khỏi máy.</div>
       <div class="source-picker">
         <div class="source-card live-card selected" id="srcCardFabricLive" onclick="selectSource('fabric_live')">
           <div class="ic"><svg viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-.6-7.95A6 6 0 0 1 18 8.5a3.5 3.5 0 0 1-.5 6.96"/><path d="M13 11l-2.5 4h3L11 19"/></svg></div>
@@ -430,12 +430,12 @@ table.dict td.opt{color:var(--muted)}
         <div class="source-card" id="srcCardFabric" onclick="selectSource('fabric')">
           <div class="ic"><svg viewBox="0 0 24 24"><path d="M7 17a4 4 0 0 1-.6-7.95A6 6 0 0 1 18 7.5a3.5 3.5 0 0 1-.5 6.96"/><path d="M12 12v9"/><path d="M8.5 17.5L12 21l3.5-3.5"/></svg></div>
           <h3>Kéo dữ liệu từ Microsoft Fabric về để phân tích</h3>
-          <p>Kéo toàn bộ dữ liệu từ Fabric về máy chủ, làm sạch bằng pipeline rồi lưu cache. Mất khá lâu, dùng khi muốn lưu cache cho dùng về sau.</p>
+          <p>Kéo toàn bộ dữ liệu từ Fabric về máy này, làm sạch bằng pipeline rồi lưu cache. Mất khá lâu, dùng khi muốn lưu cache cho dùng về sau.</p>
         </div>
         <div class="source-card" id="srcCardCache" onclick="selectSource('cache')">
           <div class="ic"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.66 3.13 3 7 3s7-1.34 7-3V6"/><path d="M5 12v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6"/></svg></div>
           <h3>Sử dụng dữ liệu cache</h3>
-          <p>Xem ngay bằng dữ liệu đã lưu sẵn từ lần nạp gần nhất trên máy chủ, không phải chờ.</p>
+          <p>Xem ngay bằng dữ liệu đã lưu sẵn từ lần nạp gần nhất trên máy này, không phải chờ.</p>
         </div>
       </div>
 
@@ -462,7 +462,7 @@ table.dict td.opt{color:var(--muted)}
             <span class="sub" id="sqlStatusText"></span>
           </div>
         </div>
-        <div class="foot-note">Thông tin nhập ở đây không được gửi lên đâu ngoài chính máy chủ local của app này, và cũng chưa được lưu lại — bấm "Kết nối" hiện tại chỉ trả về thông báo tính năng đang xây dựng.</div>
+        <div class="foot-note">Thông tin nhập ở đây không rời khỏi máy này và cũng chưa được lưu lại — bấm "Kết nối" hiện tại chỉ trả về thông báo tính năng đang xây dựng.</div>
       </div>
       <div class="panel-src" id="panelFabric">
         <div class="pipe-card">
@@ -476,7 +476,7 @@ table.dict td.opt{color:var(--muted)}
             <span class="spinner" id="spinFabricPull"></span>
           </div>
         </div>
-        <div class="foot-note">Dùng tài khoản Microsoft đã đăng nhập ở thẻ "Kết nối tính toán trực tiếp". Kéo toàn bộ lịch sử về máy chủ rồi chạy p2_prep.py để làm sạch, mất 15 đến 20 phút vì bảng nguồn tới hàng triệu dòng. Chỉ cần khi muốn đủ 29 chiều hoặc Decomposition Tree nhanh trên bản cache.</div>
+        <div class="foot-note">Dùng tài khoản Microsoft đã đăng nhập ở thẻ "Kết nối tính toán trực tiếp". Kéo toàn bộ lịch sử về máy này rồi chạy p2_prep.py để làm sạch, mất 15 đến 20 phút vì bảng nguồn tới hàng triệu dòng. Chỉ cần khi muốn đủ 29 chiều hoặc Decomposition Tree nhanh trên bản cache.</div>
         <div class="fabric-progress" id="fabricProgress" style="display:none">
           <div class="fabric-progress-head">
             <b id="fabricProgressPhase">—</b>
@@ -501,7 +501,7 @@ table.dict td.opt{color:var(--muted)}
             <div class="sub" id="fabricLiveNote" style="margin:0">Đang kiểm tra…</div>
             <a class="btn primary" id="btnMsLogin" href="/auth/login" style="display:none;text-decoration:none">Đăng nhập Microsoft</a>
             <button class="btn ghost sm" id="btnFabricLogout" onclick="fabricLogout()" style="display:none">Đăng xuất</button>
-            <button class="btn ghost sm" id="btnFabricLogin" onclick="fabricLoginStart()" style="display:none">Đăng nhập bằng mã (thử trên máy)</button>
+            <button class="btn ghost sm" id="btnFabricLogin" onclick="fabricLoginStart()" style="display:none">Đăng nhập bằng mã</button>
             <span class="spinner" id="spinFabricLogin"></span>
           </div>
           <div id="fabricLoginBox" style="display:none;margin-top:12px;padding:12px;background:#fff;border:1px solid var(--line);border-radius:10px">
@@ -688,19 +688,6 @@ table.dict td.opt{color:var(--muted)}
 
 </div>
 
-<div class="dd-overlay open" id="authBlock" style="display:none">
-  <div class="dd-panel" style="max-width:480px">
-    <div class="dd-head">
-      <div><div class="dd-eyebrow">DBV Analytics Engine</div><h2>Đăng nhập để tiếp tục</h2></div>
-    </div>
-    <div class="dd-body">
-      <div class="sub" id="authBlockMsg">Dùng tài khoản Microsoft (Power BI Pro) của bạn. Bạn chỉ xem được đúng phần dữ liệu đã được phân quyền trên Fabric.</div>
-      <div class="pipe-row" style="margin-top:14px">
-        <a class="btn primary" href="/auth/login" style="text-decoration:none">Đăng nhập Microsoft</a>
-      </div>
-    </div>
-  </div>
-</div>
 
 <div class="dd-overlay" id="ddOverlay">
   <div class="dd-panel">
@@ -850,15 +837,10 @@ let SERVER = null; // bản ghi /api/status gần nhất
 async function postJSON(url, body, signal){
   const res = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"},
     body:JSON.stringify(body||{}), signal});
-  if(res.status === 401){ showLoginGate(); }
   return await res.json();
 }
 function chk(level, title, detail){
   return `<div class="check-item"><span class="dot ${level}"></span><div><b>${title}</b><div class="d">${detail}</div></div></div>`;
-}
-function showLoginGate(msg){
-  if(msg) document.getElementById("authBlockMsg").textContent = msg;
-  document.getElementById("authBlock").style.display = "flex";
 }
 function renderAccount(s){
   const chip = document.getElementById("chipAccount");
@@ -905,14 +887,11 @@ async function checkStatus(){
     return s;
   }
 
-  if(s.loginRequired && !s.loggedIn){ showLoginGate(); return s; }
-  document.getElementById("authBlock").style.display = "none";
-
   if(s.pipelineDataExists){
     document.getElementById("cacheNote").textContent = "Đã tìm thấy dữ liệu cache — bấm 'Xem ngay' để dùng.";
   } else {
     document.getElementById("btnLoadCache").disabled = true;
-    document.getElementById("cacheNote").textContent = "Chưa có dữ liệu cache trên máy chủ — dùng Live Fabric, hoặc kéo dữ liệu về lần đầu.";
+    document.getElementById("cacheNote").textContent = "Chưa có dữ liệu cache trên máy này — dùng Live Fabric, hoặc kéo dữ liệu về lần đầu.";
   }
   if(!s.fabricAvailable){
     document.getElementById("srcCardFabric").style.display = "none";
@@ -965,7 +944,7 @@ async function refreshFabricStatus(){
   note.textContent = "Đang kiểm tra…";
   const s = await fetchFabricStatus();
   if(s.error){ note.textContent = s.error; pullBtn.disabled = true; return; }
-  if(!s.available){ note.textContent = "Máy chủ chưa cài đặt kết nối Fabric (thiếu fabric_extract.py hoặc msal)."; pullBtn.disabled = true; return; }
+  if(!s.available){ note.textContent = "Máy này chưa cài đặt kết nối Fabric (thiếu fabric_extract.py hoặc msal)."; pullBtn.disabled = true; return; }
   if(s.configError){ note.textContent = "Lỗi cấu hình: " + s.configError; pullBtn.disabled = true; return; }
   if(s.account){
     note.innerHTML = `Đã đăng nhập: <b>${escHtml(s.account)}</b>`;
@@ -1004,7 +983,7 @@ async function refreshFabricLiveStatus(){
   msBtn.style.display = "none"; codeBtn.style.display = "none"; outBtn.style.display = "none";
   const s = await fetchFabricStatus();
   if(s.error || !s.available){
-    note.textContent = s.error || "Máy chủ chưa cài đặt kết nối Fabric.";
+    note.textContent = s.error || "Máy này chưa cài đặt kết nối Fabric.";
     btn.disabled = true; return;
   }
   if(s.configError){ note.textContent = "Lỗi cấu hình: " + s.configError; btn.disabled = true; return; }
@@ -1018,7 +997,7 @@ async function refreshFabricLiveStatus(){
     btn.disabled = true;
     document.getElementById("liveFreshNote").textContent = "Đăng nhập để xem số liệu trên báo cáo đang cập nhật tới thời điểm nào.";
     msBtn.style.display = "";
-    if(s.deviceFlowAllowed) codeBtn.style.display = "";
+    codeBtn.style.display = "";
   }
   if(SERVER) { SERVER.account = s.account || null; renderAccount(SERVER); }
 }
