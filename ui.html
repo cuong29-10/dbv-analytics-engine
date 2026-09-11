@@ -213,14 +213,18 @@ table.dict td.opt{color:var(--muted)}
 .heat-wrap{overflow:auto;max-height:74vh;border:1px solid var(--line);border-radius:11px;background:#fff;padding:4px;
   overscroll-behavior:contain}
 .heat{display:grid;gap:5px;min-width:640px;padding:8px}
-/* Ghim hàng tiêu đề và cột tên để cuộn xa vẫn biết đang đọc ô nào. Nền phải đục, không để trong suốt. */
-.heat .collab{position:sticky;top:0;z-index:2}
-.heat .rowlab{position:sticky;left:0;z-index:1}
-.heat .corner{position:sticky;top:0;left:0;z-index:3}
-.heat .cell{padding:11px 6px;border-radius:8px;text-align:center;font-size:12px;font-weight:800;overflow-wrap:anywhere}
+.heat .cell{padding:11px 6px;border-radius:8px;text-align:center;font-size:12px;font-weight:800;
+  overflow-wrap:anywhere;position:relative}
 .heat .rowlab{background:#f6f8fb;color:var(--ink);text-align:left;padding-left:11px;font-weight:800}
 .heat .collab{background:#f2f5f9;color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.02em}
 .heat .corner{background:#fff}
+/* Ghim hàng tiêu đề và cột tên để cuộn xa vẫn biết đang đọc ô nào. Ba luật này phải đứng SAU ".heat
+   .cell" vì cùng độ ưu tiên — đặt trước thì position:relative của ô thường sẽ xoá mất sticky, nhãn
+   hàng trôi theo khi cuộn ngang. Lưới có gap 5px, chỉ đặt nền cho chính ô ghim thì các ô đang cuộn
+   vẫn lấp ló qua khe hở, nên box-shadow vẽ thêm một vành cùng màu phủ kín khe và phần đệm ngoài rìa. */
+.heat .collab{position:sticky;top:0;z-index:2;box-shadow:0 0 0 4px #f2f5f9,0 -9px 0 #f2f5f9}
+.heat .rowlab{position:sticky;left:0;z-index:3;box-shadow:0 0 0 4px #f6f8fb,-9px 0 0 #f6f8fb}
+.heat .corner{position:sticky;top:0;left:0;z-index:4;box-shadow:0 0 0 4px #fff,-9px 0 0 #fff,0 -9px 0 #fff}
 /* Thang tương đối (min-max) — dùng cho chỉ số không phải LR, hoặc chế độ so sánh kỳ */
 .hv1{background:#e2f4ec;color:#186b4d}
 .hv2{background:#fff0c8;color:#815d00}
@@ -274,7 +278,13 @@ table.dict td.opt{color:var(--muted)}
 .drill-toolbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;
   margin:14px 0 8px;padding:10px 12px;background:#fbfcfe;border:1px solid var(--line);border-radius:10px}
 .heat .cell.clickable{cursor:pointer;transition:transform .08s}
-.heat .cell.clickable:hover{outline:2px solid var(--brand);outline-offset:-2px;transform:scale(1.03);z-index:2;position:relative}
+.heat .cell.clickable:hover{outline:2px solid var(--brand);outline-offset:-2px;z-index:5;position:relative}
+/* Soi hàng và cột của ô đang trỏ: phủ một lớp trắng mờ cho sáng lên, giữ nguyên màu gốc của ô để
+   vẫn đọc được mức độ theo thang màu, và không che mất con số. */
+.heat .cell.xhair::after{content:"";position:absolute;inset:0;border-radius:8px;pointer-events:none;
+  background:rgba(255,255,255,.42)}
+.heat .rowlab.xhair,.heat .collab.xhair{color:var(--brand-dark)}
+.heat .rowlab.xhair::after,.heat .collab.xhair::after{background:rgba(0,132,74,.12)}
 
 .dd-overlay{position:fixed;inset:0;background:rgba(10,18,34,.55);z-index:90;display:none;
   align-items:flex-start;justify-content:center;padding:26px 16px;overflow:auto}
@@ -325,7 +335,13 @@ table.dict td.opt{color:var(--muted)}
 .dd-tab:hover{border-color:var(--brand-mid)}
 .dd-tab.active.good{background:var(--green-bg);border-color:#a9dfc6;color:var(--green)}
 .dd-tab.active.bad{background:var(--red-bg);border-color:#f2c6c6;color:var(--red)}
-.dd-decomp-btn{margin-top:10px}
+/* Vệt sáng chạy qua để mắt bị hút vào đây trước: đây là bước phân tích sâu nhất, muốn người đọc
+   ưu tiên bấm. Cùng mẫu hiệu ứng với thẻ nguồn Live ở Bước 1. */
+.dd-decomp-btn{margin-top:10px;position:relative;overflow:hidden}
+.dd-decomp-btn::after{content:"";position:absolute;top:0;left:-70%;width:45%;height:100%;pointer-events:none;
+  background:linear-gradient(105deg,rgba(255,255,255,0) 0%,rgba(255,255,255,.55) 50%,rgba(255,255,255,0) 100%);
+  transform:skewX(-18deg);animation:decompShine 3s ease-in-out infinite}
+@keyframes decompShine{0%{left:-70%}55%{left:130%}100%{left:130%}}
 
 .decomp-crumbs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:14px}
 .decomp-crumb{background:#fff;border:1px solid var(--line);border-radius:999px;padding:6px 12px;
@@ -1553,6 +1569,33 @@ function bucketLR(v){
   for(const [th,cls] of LR_BENCHMARK) if(v < th) return cls;
   return "bm6";
 }
+/* Soi chữ thập: gom sẵn danh sách ô theo từng hàng và từng cột ngay sau khi vẽ. Ma trận đầy đủ lên
+   tới 103×238 ô, quét lại bằng querySelectorAll mỗi lần rê chuột sẽ giật. */
+let heatRowEls = [], heatColEls = [], heatLit = [];
+function indexHeatCells(grid){
+  heatRowEls = []; heatColEls = []; heatLit = [];
+  for(const el of grid.children){
+    const ri = el.dataset.ri, ci = el.dataset.ci;
+    if(ri !== undefined){ (heatRowEls[ri] || (heatRowEls[ri] = [])).push(el); }
+    if(ci !== undefined){ (heatColEls[ci] || (heatColEls[ci] = [])).push(el); }
+  }
+}
+function clearCrosshair(){
+  heatLit.forEach(el=>el.classList.remove("xhair"));
+  heatLit = [];
+}
+function setCrosshair(ri, ci){
+  clearCrosshair();
+  heatLit = (heatRowEls[ri] || []).concat(heatColEls[ci] || []);
+  heatLit.forEach(el=>el.classList.add("xhair"));
+}
+document.getElementById("heatGrid").addEventListener("mouseover", e=>{
+  const el = e.target.closest(".cell");
+  if(!el || el.dataset.ri === undefined || el.dataset.ci === undefined){ clearCrosshair(); return; }
+  setCrosshair(el.dataset.ri, el.dataset.ci);
+});
+document.getElementById("heatGrid").addEventListener("mouseleave", clearCrosshair);
+
 function drawHeat(res, metric, mode, rowDim, colDim){
   const rows = res.rows, cols = res.cols, fmt = FMT[metric], useDelta = mode!=="current";
   const useBenchmark = metric==="lr" && !useDelta;
@@ -1580,12 +1623,12 @@ function drawHeat(res, metric, mode, rowDim, colDim){
     return (favorable ? "dg" : "db") + level;
   }
   const bucket = useBenchmark ? bucketLR : (useDelta ? bucketDelta : bucketRelative);
-  let html = `<div class="cell corner"></div>` + cols.map(c=>`<div class="cell collab" title="${escAttr(c)}">${c}</div>`).join("");
-  rows.forEach(r=>{
-    html += `<div class="cell rowlab" title="${escAttr(r)}">${r}</div>`;
-    cols.forEach(c=>{
+  let html = `<div class="cell corner"></div>` + cols.map((c,ci)=>`<div class="cell collab" data-ci="${ci}" title="${escAttr(c)}">${c}</div>`).join("");
+  rows.forEach((r,ri)=>{
+    html += `<div class="cell rowlab" data-ri="${ri}" title="${escAttr(r)}">${r}</div>`;
+    cols.forEach((c,ci)=>{
       const cell = res.cells[r+"|"+c];
-      if(!cell){ html += `<div class="cell" style="background:#f6f8fb;color:#b6bfcf">—</div>`; return; }
+      if(!cell){ html += `<div class="cell" data-ri="${ri}" data-ci="${ci}" style="background:#f6f8fb;color:#b6bfcf">—</div>`; return; }
       let display, cls;
       if(!useDelta){
         display = (cell.value===null||cell.value===undefined) ? "—" : fmt(cell.value);
@@ -1595,11 +1638,13 @@ function drawHeat(res, metric, mode, rowDim, colDim){
         display = (d===null||d===undefined) ? "n/a" : (d>=0?"▲ ":"▼ ")+fmt(Math.abs(d));
         cls = (d===null||d===undefined) ? "" : bucket(d);
       }
-      html += `<div class="cell clickable ${cls}" data-row="${escAttr(r)}" data-col="${escAttr(c)}" title="Bấm để đào sâu">${display}</div>`;
+      html += `<div class="cell clickable ${cls}" data-ri="${ri}" data-ci="${ci}" data-row="${escAttr(r)}" data-col="${escAttr(c)}" title="Bấm để đào sâu">${display}</div>`;
     });
   });
-  document.getElementById("heatGrid").style.gridTemplateColumns = `150px repeat(${cols.length},minmax(88px,1fr))`;
-  document.getElementById("heatGrid").innerHTML = html;
+  const grid = document.getElementById("heatGrid");
+  grid.style.gridTemplateColumns = `150px repeat(${cols.length},minmax(88px,1fr))`;
+  grid.innerHTML = html;
+  indexHeatCells(grid);
   let legendHtml;
   if(useBenchmark){
     legendHtml = `<span class="sw" style="background:var(--brand-light)"></span>Dưới 60%
@@ -1904,6 +1949,21 @@ function dsRenderAll(){
     if(el) el.innerHTML = dsRenderRows(lens, [], 0);
   });
 }
+/* Danh sách rỗng KHÔNG có nghĩa là hết dữ liệu. Trường hợp hay gặp nhất: đoạn chỉ còn đúng một nhóm
+   con, nhóm đó chính là cả đoạn nên chênh lệch bằng 0, và số 0 bị xếp sang hướng "kéo tốt lên". Nói
+   thẳng lý do, kèm số hồ sơ, để không ai tưởng là mất dữ liệu. */
+function dsEmptyReason(candidates, bad, good){
+  if(!candidates || !candidates.length) return "Chiều này không cắt thêm được nhóm nào trong đoạn đang xem.";
+  if(candidates.length === 1 && Math.abs(candidates[0].impact) < 1e-9){
+    const c = candidates[0];
+    return `Đoạn này chỉ có một nhóm: <b>${escAttr(c.category)}</b> (${c.claims} hồ sơ), trùng với cả đoạn
+      nên không có chênh lệch để so. Vẫn còn dữ liệu, chỉ là không tách thêm được theo chiều này.`;
+  }
+  const otherTab = state.ds.dir === "bad" ? "Kéo tốt lên" : "Kéo xấu đi";
+  const otherCount = (state.ds.dir === "bad" ? good : bad).length;
+  return `${candidates.length} nhóm ở bậc này đều đẩy chỉ số theo hướng ngược lại — xem tab
+    "${otherTab}" (${otherCount} nhóm).`;
+}
 function dsRenderRows(lens, pairs, depth){
   const key = dsNodeKey(lens.id, pairs);
   const node = state.ds.nodes[key];
@@ -1912,7 +1972,7 @@ function dsRenderRows(lens, pairs, depth){
   if(node.error) return `<div class="ds-empty" style="color:var(--red)">${node.error}</div>`;
   const {bad, good} = splitDrivers(node.candidates, state.ds.metric);
   const list = (state.ds.dir==="bad" ? bad : good).slice(0, DS_TOP_N);
-  if(!list.length) return `<div class="ds-empty">Không có nhóm nào theo hướng đang chọn ở bậc này.</div>`;
+  if(!list.length) return `<div class="ds-empty">${dsEmptyReason(node.candidates, bad, good)}</div>`;
   const fmt = FMT[state.ds.metric];
   const isLeaf = depth >= lens.chain.length - 1;
   const maxAbs = Math.max(...list.map(c=>Math.abs(c.impact))) || 1;
@@ -2090,7 +2150,7 @@ function exportDecompExcel(){
 
 function decompCandidateRows(candidates, metric){
   const fmt = FMT[metric];
-  if(!candidates.length) return `<div class="sub">Không có nhóm nào đủ mẫu (≥5 hồ sơ) trong chiều này.</div>`;
+  if(!candidates.length) return `<div class="sub">Chiều này không cắt thêm được nhóm nào trong đoạn đang xem.</div>`;
   const worse = HIGHER_IS_WORSE[metric] !== false;
   const maxAbs = Math.max(...candidates.map(c=>Math.abs(c.impact))) || 1;
   const head = `<div class="decomp-row head"><div>Nhóm</div><div style="text-align:right">Giá trị</div><div>Mức đóng góp</div><div style="text-align:right">Hồ sơ</div></div>`;
