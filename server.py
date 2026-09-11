@@ -19,7 +19,6 @@ import socket
 import sys
 import threading
 import time
-import urllib.request
 import webbrowser
 import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -58,7 +57,6 @@ else:
     DATA_DIR = os.path.join(PIPE_DIR, "data")
 UI_FILE = os.path.join(BASE_DIR, "ui.html")
 SYNC_TOKEN_FILE = os.path.join(HERE, "sync_token.txt")
-SYNC_CONFIG_FILE = os.path.join(HERE, "sync_config.json")
 PORT = int(os.environ.get("PORT", "8787"))
 
 # Ưu tiên bản engine.py nằm cạnh server.py (bundle standalone luôn có sẵn bản này) — nếu không có
@@ -140,7 +138,7 @@ def lan_ip():
         s.close()
 
 STORE = WA.SessionScoped("store", lambda: {"pol": None, "clm": None, "source": None, "loadedAt": None,
-                                           "lastValidate": None, "lastSyncedAt": None})
+                                           "lastValidate": None})
 
 POLICY_REQUIRED = ["Số hợp đồng", "Ngày hiệu lực hợp đồng", "Ngày kết thúc hiệu lực", "Phí BH phân bổ"]
 POLICY_OPTIONAL = ["Mã đơn vị", "Kênh khai thác", "Hãng xe", "Dải giá trị xe", "Mục đích sử dụng",
@@ -1537,41 +1535,6 @@ def h_decompose_export(handler, token, qs):
     handler.wfile.write(payload)
 
 
-def h_sync_pull(body):
-    """Chạy trên máy NGƯỜI NHẬN (app standalone) — kéo gói dữ liệu mới nhất từ máy chủ đầu mối
-    (đọc địa chỉ + token trong sync_config.json), thay dữ liệu cục bộ rồi nạp lại y hệt luồng
-    'Nạp dữ liệu pipeline'. Không đụng gì tới dữ liệu bên máy nguồn — chỉ đọc (GET)."""
-    if not os.path.isfile(SYNC_CONFIG_FILE):
-        return {"error": f"Chưa cấu hình nguồn đồng bộ — cần file {os.path.basename(SYNC_CONFIG_FILE)} "
-                          '(vd {"sourceHost":"10.0.0.5:8787","syncToken":"..."}) cạnh server.py.'}
-    try:
-        cfg = json.load(open(SYNC_CONFIG_FILE, encoding="utf-8"))
-        source_host, sync_token = cfg["sourceHost"], cfg["syncToken"]
-    except Exception as e:  # noqa: BLE001
-        return {"error": f"sync_config.json sai định dạng: {e}"}
-
-    url = f"http://{source_host}/api/data_package?token={sync_token}"
-    try:
-        with urllib.request.urlopen(url, timeout=25) as resp:
-            raw = resp.read()
-    except Exception as e:  # noqa: BLE001
-        return {"error": f"Không kết nối được nguồn đồng bộ ({source_host}) — máy nguồn có đang bật "
-                          f"và cùng mạng (LAN/Tailscale) không? Chi tiết: {e}"}
-    try:
-        os.makedirs(DATA_DIR, exist_ok=True)
-        with zipfile.ZipFile(io.BytesIO(raw)) as z:
-            z.extract("clean_policy.parquet", DATA_DIR)
-            z.extract("clean_claims.parquet", DATA_DIR)
-    except Exception as e:  # noqa: BLE001
-        return {"error": f"Gói dữ liệu tải về bị lỗi hoặc thiếu file: {e}"}
-
-    result = h_validate({"source": "pipeline"})
-    if "error" not in result:
-        STORE["lastSyncedAt"] = STORE["loadedAt"]
-        result["syncedAt"] = STORE["lastSyncedAt"]
-    return result
-
-
 # ------------------------------------------------------------ Microsoft Fabric (nguồn thứ tư)
 # Device code flow tách hai bước (xem pipeline/fabric_extract.py): bước 1 khởi tạo và trả về
 # ngay mã+link để hiện lên UI; bước 2 mới CHẶN chờ người dùng hoàn tất trên trình duyệt. Giữ
@@ -1594,6 +1557,30 @@ def fabric_account():
     if sess is None:
         return FABRIC.whoami()
     return WA.account(FABRIC, sess)
+
+
+def h_fabric_last_refresh(_body):
+    """Thời điểm dataset trên Fabric hoàn tất làm mới lần gần nhất — mốc "số liệu tới lúc nào" mà mọi
+    truy vấn Live đang phản ánh. Dùng REST /refreshes của Power BI, cùng quyền Dataset.Read.All đã có."""
+    if not FABRIC:
+        return {"error": "Máy chủ chưa cài đặt kết nối Fabric."}
+    tok = fabric_token()
+    if not tok:
+        return {"error": "Chưa đăng nhập."}
+    import requests
+    cfg = FABRIC.load_config()
+    url = (f"https://api.powerbi.com/v1.0/myorg/groups/{cfg['workspaceId']}"
+           f"/datasets/{cfg['datasetId']}/refreshes?$top=10")
+    try:
+        r = requests.get(url, headers={"Authorization": f"Bearer {tok}"}, timeout=60)
+    except Exception as e:  # noqa: BLE001
+        return {"error": f"Không gọi được Power BI: {e}"}
+    if r.status_code != 200:
+        return {"error": f"Power BI trả HTTP {r.status_code}"}
+    for item in r.json().get("value", []):
+        if item.get("status") == "Completed" and item.get("endTime"):
+            return {"endTime": item["endTime"], "refreshType": item.get("refreshType")}
+    return {"error": "Chưa có lần làm mới nào hoàn tất."}
 
 
 def h_fabric_status(_body):
@@ -1727,8 +1714,9 @@ def h_get_data_package(handler, token):
 
 
 ROUTES = {"/api/validate": h_validate, "/api/analyze": h_analyze,
-          "/api/drilldown": h_drilldown, "/api/sync_pull": h_sync_pull,
-          "/api/fabric_status": h_fabric_status, "/api/fabric_login_start": h_fabric_login_start,
+          "/api/drilldown": h_drilldown,
+          "/api/fabric_status": h_fabric_status,
+          "/api/fabric_last_refresh": h_fabric_last_refresh, "/api/fabric_login_start": h_fabric_login_start,
           "/api/fabric_login_wait": h_fabric_login_wait, "/api/fabric_pull": h_fabric_pull,
           "/api/fabric_progress": h_fabric_progress,
           "/api/fabric_live_analyze": h_fabric_live_analyze,
@@ -1851,10 +1839,9 @@ class Handler(BaseHTTPRequestHandler):
             out = {
                 "standalone": STANDALONE, "hosted": WA.HOSTED, "loginRequired": WA.LOGIN_REQUIRED,
                 "account": account, "loggedIn": self._logged_in(),
-                "source": STORE["source"], "loadedAt": STORE["loadedAt"], "lastSyncedAt": STORE["lastSyncedAt"],
+                "source": STORE["source"], "loadedAt": STORE["loadedAt"],
                 "hasData": STORE["pol"] is not None and STORE["clm"] is not None,
                 "pipelineDataExists": os.path.isfile(os.path.join(DATA_DIR, "clean_policy.parquet")),
-                "syncConfigured": os.path.isfile(SYNC_CONFIG_FILE),
                 "fabricAvailable": FABRIC is not None,
             }
             if STORE.get("lastValidate"):
@@ -1906,6 +1893,10 @@ class Handler(BaseHTTPRequestHandler):
         self._send_json(result)
 
 
+class ThreadingHTTPServer6(ThreadingHTTPServer):
+    address_family = socket.AF_INET6
+
+
 def run_standalone():
     """Bản demo standalone: không đăng nhập, chỉ nghe loopback, dữ liệu nhúng sẵn nạp ngay lúc mở,
     tự bật trình duyệt. Đóng cửa sổ này (hoặc Ctrl+C) là tắt hẳn ứng dụng."""
@@ -1942,8 +1933,16 @@ def run_standalone():
 def run_web():
     """Bản web: chạy trên máy (localhost) hay trên host đều cùng một đường. Trên host: PORT và
     DBV_BASE_URL do nền tảng/biến môi trường đặt, mọi request /api cần đăng nhập Microsoft."""
-    bind_host = "0.0.0.0" if WA.HOSTED else "127.0.0.1"
-    srv = ThreadingHTTPServer((bind_host, PORT), Handler)
+    if WA.HOSTED:
+        srv = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+    else:
+        # Windows phân giải "localhost" sang ::1 TRƯỚC 127.0.0.1. Chỉ nghe IPv4 thì mỗi request phải
+        # chờ IPv6 thất bại rồi mới thử lại — đo được 2,05 giây/request so với 0,03 giây khi gọi thẳng
+        # 127.0.0.1. Redirect URI đã đăng ký với Entra ID là localhost nên phải nghe cả hai, mỗi họ địa
+        # chỉ một socket riêng, vẫn chỉ loopback (máy khác trong mạng không vào được).
+        srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+        srv6 = ThreadingHTTPServer6(("::1", PORT), Handler)
+        threading.Thread(target=srv6.serve_forever, daemon=True).start()
     print("=" * 70, flush=True)
     print(f"DBV Analytics Engine (web) dang chay - PORT {PORT}", flush=True)
     print(f"  Dia chi: {WA.BASE_URL}/", flush=True)

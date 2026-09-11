@@ -1,5 +1,0 @@
-{
-  "_huong_dan": "Copy file nay thanh sync_config.json (cung thu muc voi server.py) roi dien dung sourceHost va syncToken. Ca hai gia tri nay server.py cua nguoi CHIA SE in ra moi luc khoi dong, o phan 'Dong bo du lieu cho app standalone'. syncToken KHONG doi khi ho khoi dong lai server, nen dien mot lan la dung duoc lau dai.",
-  "sourceHost": "10.0.0.5:8787",
-  "syncToken": "dan-sync-token-cua-may-nguon-vao-day"
-}

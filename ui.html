@@ -383,7 +383,7 @@ table.dict td.opt{color:var(--muted)}
 <div class="topbar">
   <div class="brand">
     <div class="mark">DBV</div>
-    <div><b>Analytics Engine · Live</b><small>Tính toán thật trên engine.py và Microsoft Fabric</small></div>
+    <div><b>Analytics Engine · Live</b></div>
   </div>
   <div class="chips">
     <span class="chip account" id="chipAccount" style="display:none"></span>
@@ -406,7 +406,6 @@ table.dict td.opt{color:var(--muted)}
   <section class="step-panel active" id="step1">
     <div class="head-row">
       <h1>Bước 1 · Nhập &amp; kiểm tra dữ liệu</h1>
-      <div class="sub">Mọi con số đều do engine.py hoặc measure của báo cáo trên Fabric tính ra, không có số liệu giả lập.</div>
     </div>
 
     <div class="card" id="ownerDataCard">
@@ -416,7 +415,7 @@ table.dict td.opt{color:var(--muted)}
         <div class="source-card live-card selected" id="srcCardFabricLive" onclick="selectSource('fabric_live')">
           <div class="ic"><svg viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-.6-7.95A6 6 0 0 1 18 8.5a3.5 3.5 0 0 1-.5 6.96"/><path d="M13 11l-2.5 4h3L11 19"/></svg></div>
           <h3>Kết nối tính toán trực tiếp với Microsoft Fabric<span class="live-tag">Live</span></h3>
-          <p>Đăng nhập bằng tài khoản Microsoft của bạn, gọi thẳng chỉ số của báo cáo trên Fabric, đúng phần dữ liệu bạn được xem. Số liệu tới lần làm mới gần nhất của báo cáo (06:00 và 12:00 hằng ngày).</p>
+          <p>Đăng nhập bằng tài khoản Microsoft Power BI được phân quyền. Số liệu sẽ được kết nối trực tiếp với Microsoft Fabric để tính toán.</p>
         </div>
         <div class="source-card" id="srcCardCache" onclick="selectSource('cache')">
           <div class="ic"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.66 3.13 3 7 3s7-1.34 7-3V6"/><path d="M5 12v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6"/></svg></div>
@@ -431,12 +430,7 @@ table.dict td.opt{color:var(--muted)}
         <div class="source-card" id="srcCardFabric" onclick="selectSource('fabric')">
           <div class="ic"><svg viewBox="0 0 24 24"><path d="M7 17a4 4 0 0 1-.6-7.95A6 6 0 0 1 18 7.5a3.5 3.5 0 0 1-.5 6.96"/><path d="M12 12v9"/><path d="M8.5 17.5L12 21l3.5-3.5"/></svg></div>
           <h3>Kéo dữ liệu từ Microsoft Fabric về để phân tích</h3>
-          <p>Kéo toàn bộ dữ liệu từ Fabric về máy chủ, làm sạch bằng pipeline rồi lưu cache. Mất khá lâu, dùng khi cần đủ 29 chiều.</p>
-        </div>
-        <div class="source-card" id="srcCardSync" onclick="selectSource('sync')">
-          <div class="ic"><svg viewBox="0 0 24 24"><path d="M20 11A8 8 0 0 0 5.6 6.4L4 8"/><path d="M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14.4 4.6L20 16"/><path d="M20 20v-4h-4"/></svg></div>
-          <h3>Đồng bộ từ máy chia sẻ</h3>
-          <p>Kéo dữ liệu mới nhất từ máy đầu mối qua LAN hoặc Tailscale khi máy này chưa có gì.</p>
+          <p>Kéo toàn bộ dữ liệu từ Fabric về máy chủ, làm sạch bằng pipeline rồi lưu cache. Mất khá lâu, dùng khi muốn lưu cache cho dùng về sau.</p>
         </div>
         <div class="source-card" id="srcCardSql" onclick="selectSource('sql')">
           <div class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/><path d="M8 7h.01M8 17h.01"/></svg></div>
@@ -529,23 +523,7 @@ table.dict td.opt{color:var(--muted)}
             <button class="btn success" id="btnStartLive" onclick="startLiveTest()" disabled>Bắt đầu →</button>
           </div>
         </div>
-        <div class="foot-note">Bạn đăng nhập trên trang của Microsoft, mật khẩu không đi qua app. Quyền xin chỉ là đọc dataset Power BI; Fabric tự áp phân quyền dữ liệu (RLS) theo đúng tài khoản của bạn.
-        <br><br>Chế độ này gọi thẳng các chỉ số của báo cáo "Báo cáo quản trị BH XCG" trên Fabric, dưới đúng bộ lọc mà báo cáo đang áp (nghiệp vụ VCX ô tô, nguồn dữ liệu DBV, loại sự kiện thiên tai). Tỷ lệ bồi thường, tần suất và mức độ tổn thất khớp đúng số trên báo cáo Power BI.
-        <br><br>Số liệu lấy tới lần làm mới gần nhất của báo cáo, chạy 06:00 và 12:00 hằng ngày. Mỗi lần đổi khoảng ngày hoặc chọn ô sẽ truy vấn lại Fabric; Khám phá nhanh và Decomposition Tree có thể mất khoảng 1-2 phút.</div>
-      </div>
-
-      <!-- Sync panel -->
-      <div class="panel-src" id="panelSync">
-        <div class="pipe-card">
-          <b>Đồng bộ dữ liệu từ máy chia sẻ</b>
-          <div class="sub" style="margin-top:4px" id="syncNote">Đang kiểm tra cấu hình…</div>
-          <div class="pipe-row">
-            <button class="btn primary" id="btnSyncPull" onclick="runSyncPull()">Đồng bộ dữ liệu mới nhất</button>
-            <span class="spinner" id="spinSync"></span>
-            <span class="sub" id="syncStatusText"></span>
-          </div>
-        </div>
-        <div class="foot-note">Cần file <code>sync_config.json</code> cạnh <code>server.py</code>, chứa địa chỉ và token của máy đầu mối (xem <code>sync_config.example.json</code>). Máy đầu mối phải đang bật và cùng mạng (LAN văn phòng, hoặc cùng mạng riêng ảo kiểu Tailscale) tại thời điểm bấm — nếu không tới được, dữ liệu cũ đã có vẫn dùng tiếp bình thường.</div>
+        <div class="foot-note" id="liveFreshNote">Số liệu trên báo cáo tới thời điểm: đang kiểm tra…</div>
       </div>
 
       <!-- CSV panel -->
@@ -913,7 +891,6 @@ async function checkStatus(){
   }
 
   if(s.standalone){
-    document.getElementById("srcCardSync").style.display = "none";
     if(!s.fabricAvailable){
       document.getElementById("srcCardFabric").style.display = "none";
       document.getElementById("srcCardFabricLive").style.display = "none";
@@ -931,7 +908,6 @@ async function checkStatus(){
   if(s.loginRequired && !s.loggedIn){ showLoginGate(); return s; }
   document.getElementById("authBlock").style.display = "none";
 
-  if(s.hosted) document.getElementById("srcCardSync").style.display = "none";
   if(s.pipelineDataExists){
     document.getElementById("cacheNote").textContent = "Đã tìm thấy dữ liệu cache — bấm 'Xem ngay' để dùng.";
   } else {
@@ -944,7 +920,6 @@ async function checkStatus(){
     if(state.source === "fabric_live") selectSource("csv");
   }
   if(s.hasData && s.lastValidate) applyValidateResult(s.lastValidate);
-  renderSyncPanel(s);
   if(state.source === "fabric_live") refreshFabricLiveStatus();
   return s;
 }
@@ -963,17 +938,15 @@ function selectSource(src){
   state.source = src;
   document.getElementById("srcCardCache").classList.toggle("selected", src==="cache");
   document.getElementById("srcCardCsv").classList.toggle("selected", src==="csv");
-  document.getElementById("srcCardSync").classList.toggle("selected", src==="sync");
   document.getElementById("srcCardFabric").classList.toggle("selected", src==="fabric");
   document.getElementById("srcCardSql").classList.toggle("selected", src==="sql");
   document.getElementById("srcCardFabricLive").classList.toggle("selected", src==="fabric_live");
   document.getElementById("panelCache").classList.toggle("active", src==="cache");
   document.getElementById("panelCsv").classList.toggle("active", src==="csv");
-  document.getElementById("panelSync").classList.toggle("active", src==="sync");
   document.getElementById("panelFabric").classList.toggle("active", src==="fabric");
   document.getElementById("panelSql").classList.toggle("active", src==="sql");
   document.getElementById("panelFabricLive").classList.toggle("active", src==="fabric_live");
-  const labels = {cache:"Dữ liệu cache", csv:"CSV upload", sync:"Đồng bộ từ máy chia sẻ", fabric:"Kéo dữ liệu Fabric", sql:"SQL Server DWH", fabric_live:"Fabric (Live)"};
+  const labels = {cache:"Dữ liệu cache", csv:"CSV upload", fabric:"Kéo dữ liệu Fabric", sql:"SQL Server DWH", fabric_live:"Fabric (Live)"};
   document.getElementById("chipSource").textContent = "Nguồn: " + labels[src];
   document.getElementById("chipSource").classList.add("on");
   if(src==="fabric") refreshFabricStatus();
@@ -1002,6 +975,24 @@ async function refreshFabricStatus(){
     pullBtn.disabled = true;
   }
 }
+let _lastRefreshText = null;
+function fmtRefresh(iso){
+  const d = new Date(iso);
+  const p = n => String(n).padStart(2, "0");
+  return `${p(d.getHours())}:${p(d.getMinutes())} ngày ${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()}`;
+}
+async function loadLastRefresh(){
+  const note = document.getElementById("liveFreshNote");
+  if(_lastRefreshText){ note.textContent = _lastRefreshText; return; }
+  try{
+    const r = await postJSON("/api/fabric_last_refresh", {});
+    _lastRefreshText = r.endTime
+      ? `Số liệu trên báo cáo tới thời điểm ${fmtRefresh(r.endTime)}. Báo cáo được làm mới lúc 06:00 và 12:00 hằng ngày.`
+      : "Chưa lấy được thời điểm làm mới gần nhất của báo cáo.";
+  }catch(e){ _lastRefreshText = "Chưa lấy được thời điểm làm mới gần nhất của báo cáo."; }
+  note.textContent = _lastRefreshText;
+}
+
 /* ---------------- Fabric Live Connection ---------------- */
 async function refreshFabricLiveStatus(){
   const note = document.getElementById("fabricLiveNote");
@@ -1021,9 +1012,11 @@ async function refreshFabricLiveStatus(){
     note.innerHTML = `Đã đăng nhập: <b>${escHtml(s.account)}</b>. Chọn khoảng ngày rồi bấm Bắt đầu.`;
     btn.disabled = false;
     outBtn.style.display = "";
+    loadLastRefresh();
   } else {
     note.textContent = "Chưa đăng nhập Microsoft.";
     btn.disabled = true;
+    document.getElementById("liveFreshNote").textContent = "Đăng nhập để xem số liệu trên báo cáo đang cập nhật tới thời điểm nào.";
     msBtn.style.display = "";
     if(s.deviceFlowAllowed) codeBtn.style.display = "";
   }
@@ -1155,35 +1148,6 @@ async function fabricPull(){
 }
 
 /* ---------------- sync (app standalone kéo dữ liệu từ máy chia sẻ) ---------------- */
-function renderSyncPanel(s){
-  const note = document.getElementById("syncNote");
-  if(!s.syncConfigured){
-    note.innerHTML = `Chưa có <code>sync_config.json</code> — chưa cấu hình được máy nguồn để đồng bộ.`;
-    document.getElementById("btnSyncPull").disabled = true;
-  } else {
-    document.getElementById("btnSyncPull").disabled = false;
-    note.textContent = s.lastSyncedAt
-      ? `Đã cấu hình nguồn đồng bộ. Đồng bộ lần cuối lúc: ${s.lastSyncedAt}.`
-      : `Đã cấu hình nguồn đồng bộ. Chưa đồng bộ lần nào trên máy này.`;
-  }
-}
-async function runSyncPull(){
-  const btn = document.getElementById("btnSyncPull"), spin = document.getElementById("spinSync");
-  const statusText = document.getElementById("syncStatusText");
-  btn.disabled = true; spin.classList.add("on"); statusText.textContent = "Đang kết nối máy nguồn…";
-  try{
-    const res = await postJSON("/api/sync_pull", {});
-    if(res.error){
-      statusText.textContent = res.error;
-    } else {
-      statusText.textContent = `Đồng bộ xong lúc ${res.syncedAt}.`;
-      document.getElementById("syncNote").textContent = `Đồng bộ lần cuối lúc: ${res.syncedAt}.`;
-      applyValidateResult(res);
-    }
-  }catch(e){ statusText.textContent = "Lỗi kết nối backend."; }
-  btn.disabled = false; spin.classList.remove("on");
-}
-
 /* ---------------- CSV dropzones ---------------- */
 function setupDropzone(key, inputId, dzId){
   const dz = document.getElementById(dzId);

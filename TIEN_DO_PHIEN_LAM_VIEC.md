@@ -134,11 +134,32 @@ URI và cờ Secure của cookie), `DBV_LOGIN_REQUIRED` (mặc định 1 khi có
   có `Secure`, device-code bị chặn, `/auth/login` chuyển đúng tới login.microsoftonline.com với
   `redirect_uri=https://<domain>/auth/callback`.
 
+### 3.2b. Sửa thêm sau lần rà giao diện (11/09/2026)
+- Bỏ hai dòng chú thích đầu trang, bỏ toàn bộ foot-note dài của panel Live, bỏ hẳn nguồn "Đồng bộ từ
+  máy chia sẻ" (cả thẻ, panel, `h_sync_pull`, `sync_config.json`) vì bản web không còn chia sẻ máy.
+- Wording thẻ Live và thẻ Kéo dữ liệu về theo đúng câu người dùng chốt.
+- Thêm `/api/fabric_last_refresh`: đọc `/refreshes` của Power BI REST (cùng quyền `Dataset.Read.All`),
+  hiện "Số liệu trên báo cáo tới thời điểm HH:MM ngày DD/MM/YYYY" dưới panel Live sau khi đăng nhập.
+- **Lỗi tốc độ đã sửa**: server chỉ bind `127.0.0.1`, trong khi Windows phân giải `localhost` sang `::1`
+  trước — mỗi request phải chờ IPv6 thất bại. Đo được 2,05 giây/request qua `localhost` so với 0,03 giây
+  qua `127.0.0.1`. Nay nghe cả hai (thêm `ThreadingHTTPServer6` trên `::1`), đo lại còn 0,03 giây.
+  Redirect URI đã đăng ký là `localhost` nên bắt buộc phải xử lý, không thể né bằng cách đổi địa chỉ.
+
+### 3.2c. Đo tải nhiều người dùng đồng thời
+- 20 request song song qua `localhost`: tổng 0,05 giây, chậm nhất 0,02 giây. `ThreadingHTTPServer` mỗi
+  request một luồng, phần lớn thời gian là chờ Fabric trả lời nên GIL không phải nút thắt.
+- RAM mỗi phiên khi dùng nguồn **Cache**: giữ 69 MB (đỉnh lúc nạp 91 MB) cho 881.068 dòng hợp đồng +
+  507.791 dòng bồi thường. Render Free có 512 MB, nên khoảng 4-5 phiên cùng dùng nguồn Cache là chạm
+  trần. Nguồn **Live Fabric** chỉ giữ lưới kết quả, không đáng kể — đây là lý do đặt Live làm mặc định.
+- Phiên tự hết hạn sau 12 giờ không dùng (`SESSION_IDLE_SECONDS`), dọn trong `_purge_idle()`.
+
 ### 3.3. Chưa làm / chờ
 1. **IT đăng ký redirect URI** (Phần 3.4). Chưa có thì nút "Đăng nhập Microsoft" sẽ bị Microsoft báo lỗi
    `AADSTS50011`; trên máy tạm dùng nút "Đăng nhập bằng mã (thử trên máy)".
 2. Người dùng tự test bản local qua UI: đăng nhập, Live Fabric, Cache, CSV, Kéo Fabric về, Đào sâu.
-3. Tạo repo GitHub chỉ chứa thư mục `app/` (không đẩy cả repo báo cáo có .pbix/.xlsx/.pptx), nhánh
+3. Repo git đã khởi tạo trong `app/` (nhánh `main` + `dev`, commit đầu xong). Remote GitHub:
+   `https://github.com/cuong29-10/dbv-analytics-engine.git` — CHƯA push, chờ người dùng duyệt giao diện.
+   Sau đó nối Render qua Blueprint (không đẩy cả repo báo cáo có .pbix/.xlsx/.pptx), nhánh
    `dev` để làm việc, `main` để Render build. Nối Render qua Blueprint (`render.yaml`), điền 4 ID Fabric
    vào Environment, sửa `DBV_BASE_URL` theo domain Render cấp, rồi gửi domain đó cho IT thêm redirect
    URI thứ hai.
