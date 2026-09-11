@@ -1584,15 +1584,17 @@ function clearCrosshair(){
   heatLit.forEach(el=>el.classList.remove("xhair"));
   heatLit = [];
 }
-function setCrosshair(ri, ci){
+function setCrosshair(ri, ci, self){
   clearCrosshair();
-  heatLit = (heatRowEls[ri] || []).concat(heatColEls[ci] || []);
+  // Bỏ qua chính ô đang rê: nó phải giữ nguyên màu gốc, nếu không thì ô đang đọc lại mờ như mọi ô
+  // khác trên cùng hàng/cột và khó nhìn hơn trước khi rê.
+  heatLit = (heatRowEls[ri] || []).concat(heatColEls[ci] || []).filter(el=>el !== self);
   heatLit.forEach(el=>el.classList.add("xhair"));
 }
 document.getElementById("heatGrid").addEventListener("mouseover", e=>{
   const el = e.target.closest(".cell");
   if(!el || el.dataset.ri === undefined || el.dataset.ci === undefined){ clearCrosshair(); return; }
-  setCrosshair(el.dataset.ri, el.dataset.ci);
+  setCrosshair(el.dataset.ri, el.dataset.ci, el);
 });
 document.getElementById("heatGrid").addEventListener("mouseleave", clearCrosshair);
 
@@ -2036,7 +2038,8 @@ function buildInitialDecompPath(seg){
 async function openDecomp(){
   const seg = state.ddSeg;
   if(!seg) return;
-  state.decomp = {path: buildInitialDecompPath(seg), metric: seg.metric, start: seg.start, end: seg.end, splitDim: null};
+  state.decomp = {path: buildInitialDecompPath(seg), metric: seg.metric, start: seg.start, end: seg.end,
+    splitDim: null, dir: (state.decomp && state.decomp.dir) || "bad", lastRes: null};
   document.getElementById("decompOverlay").classList.add("open");
   await loadDecompNode();
 }
@@ -2085,12 +2088,14 @@ function renderDecompNode(res){
       value="${escAttr(DIM_LABELS[st.splitDim]||"")}"><div class="combo-menu" id="decompSplitSelMenu"></div></div>
   </div>`;
 
+  state.decomp.lastRes = res;
   let listBlock = "";
   if(st.splitDim && res.candidates){
-    listBlock = decompCandidateRows(res.candidates, st.metric);
+    listBlock = decompListHtml(res.candidates, st.metric);
   } else if(!res.availableDims.length){
     listBlock = `<div class="sub">Đã dùng hết mọi chiều sẵn có, không bóc tách thêm được nữa.</div>`;
   }
+  listBlock = `<div id="decompList">${listBlock}</div>`;
 
   const detailBlock = `
     <div class="card" style="padding:16px;margin-top:14px">
@@ -2148,9 +2153,35 @@ function exportDecompExcel(){
   window.location.href = endpoint + "?" + params.toString();
 }
 
-function decompCandidateRows(candidates, metric){
+/* Cùng cách chia hướng như tab Chi tiết: trộn nhóm kéo xấu và nhóm kéo tốt vào một bảng thì rất khó
+   đọc, vì hai bên bù trừ nhau. "Tất cả" vẫn giữ để xem toàn cảnh khi cần. */
+function decompDirTabs(candidates, metric){
+  const {bad, good} = splitDrivers(candidates, metric);
+  const dir = state.decomp.dir;
+  const tab = (id, label, n, cls) =>
+    `<div class="dd-tab ${dir===id?("active "+cls):""}" onclick="switchDecompDir('${id}')">${label} (${n})</div>`;
+  return `<div class="dd-tabs">${tab("bad","Kéo xấu đi",bad.length,"bad")}${tab("good","Kéo tốt lên",good.length,"good")}` +
+    `<div class="dd-tab ${dir==="all"?"active":""}" onclick="switchDecompDir('all')">Tất cả (${candidates.length})</div></div>`;
+}
+function decompListHtml(candidates, metric){
+  return decompDirTabs(candidates, metric) + decompCandidateRows(candidates, metric);
+}
+function switchDecompDir(dir){
+  state.decomp.dir = dir;
+  const res = state.decomp.lastRes;
+  // Chỉ vẽ lại đúng danh sách nhóm. Vẽ lại cả khối sẽ kéo theo một lượt truy vấn danh sách hồ sơ nữa,
+  // ở nguồn Live mỗi lượt như vậy mất vài giây.
+  if(res && res.candidates) document.getElementById("decompList").innerHTML = decompListHtml(res.candidates, state.decomp.metric);
+}
+function decompCandidateRows(allCandidates, metric){
+  const {bad, good} = splitDrivers(allCandidates, metric);
+  const dir = state.decomp.dir;
+  const candidates = dir === "bad" ? bad : dir === "good" ? good : allCandidates;
   const fmt = FMT[metric];
-  if(!candidates.length) return `<div class="sub">Chiều này không cắt thêm được nhóm nào trong đoạn đang xem.</div>`;
+  if(!allCandidates.length) return `<div class="sub">Chiều này không cắt thêm được nhóm nào trong đoạn đang xem.</div>`;
+  if(!candidates.length) return `<div class="sub">Không có nhóm nào theo hướng này. ${
+    dir==="bad" ? `Toàn bộ ${good.length} nhóm đang kéo chỉ số tốt lên.`
+                : `Toàn bộ ${bad.length} nhóm đang kéo chỉ số xấu đi.`}</div>`;
   const worse = HIGHER_IS_WORSE[metric] !== false;
   const maxAbs = Math.max(...candidates.map(c=>Math.abs(c.impact))) || 1;
   const head = `<div class="decomp-row head"><div>Nhóm</div><div style="text-align:right">Giá trị</div><div>Mức đóng góp</div><div style="text-align:right">Hồ sơ</div></div>`;
