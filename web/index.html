@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DBV Analytics Engine</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="mark">DBV</div>
+    <div><b>Analytics Engine</b><div class="sub">Kết nối trực tiếp Microsoft Fabric</div></div>
+  </div>
+  <div class="chips">
+    <span class="chip" id="chipFresh">Đang kiểm tra dữ liệu…</span>
+    <span class="chip" id="chipAccount" style="display:none"></span>
+  </div>
+</div>
+
+<!-- màn đăng nhập -->
+<div class="wrap" id="gate" style="display:none">
+  <div class="gate">
+    <div class="mark">DBV</div>
+    <h1>Đăng nhập để tiếp tục</h1>
+    <div class="sub">Dùng tài khoản Microsoft Power BI đã được phân quyền. Bạn chỉ xem được đúng
+      phần dữ liệu mình được phép, do Power BI tự áp.</div>
+    <button class="btn primary" id="btnLogin">Đăng nhập Microsoft</button>
+    <div class="err" id="gateErr" style="display:none"></div>
+  </div>
+</div>
+
+<!-- ứng dụng -->
+<div class="wrap" id="app" style="display:none">
+
+  <div class="card">
+    <h2>Chọn góc nhìn</h2>
+    <div class="sub" style="margin-bottom:14px">Số liệu tính thẳng trên Microsoft Fabric, khớp đúng
+      chỉ số của báo cáo quản trị bảo hiểm xe cơ giới.</div>
+    <div class="controls">
+      <div class="field"><label for="fFrom">Từ ngày</label><input type="date" id="fFrom"></div>
+      <div class="field"><label for="fTo">Đến ngày</label><input type="date" id="fTo"></div>
+      <div class="field"><label for="fRow">Chiều hàng</label><select id="fRow"></select></div>
+      <div class="field"><label for="fCol">Chiều cột</label><select id="fCol"></select></div>
+      <div class="field"><label for="fMetric">Chỉ số</label><select id="fMetric"></select></div>
+      <div class="field"><label for="fMode">Cách xem</label>
+        <select id="fMode">
+          <option value="current">Kỳ hiện tại</option>
+          <option value="yoy">So cùng kỳ năm trước</option>
+          <option value="mom">So kỳ liền trước</option>
+        </select>
+      </div>
+      <div class="field"><label for="fTop">Số nhóm hiển thị</label>
+        <select id="fTop">
+          <option value="8">Top 8</option>
+          <option value="15" selected>Top 15</option>
+          <option value="30">Top 30</option>
+          <option value="0">Tất cả</option>
+        </select>
+      </div>
+      <button class="btn primary" id="btnRun">Xem kết quả</button>
+    </div>
+    <div class="status" style="margin-top:12px">
+      <span class="spinner" id="spinMain"></span><span id="statusMain"></span>
+    </div>
+    <div class="err" id="errMain" style="display:none"></div>
+  </div>
+
+  <div class="card" id="resultCard" style="display:none">
+    <h2>Toàn danh mục</h2>
+    <div class="kpis" id="kpis"></div>
+
+    <div class="sec">
+      <h3 id="heatTitle">Bản đồ nhiệt</h3>
+      <div class="sub" id="heatSub" style="margin-bottom:10px"></div>
+      <div class="heat-wrap"><div class="heat" id="heatGrid"></div></div>
+      <div class="legend" id="legend"></div>
+      <div class="foot-note" id="coverageNote"></div>
+    </div>
+  </div>
+
+  <div class="card" id="emptyCard">
+    <div class="empty-state">
+      <div class="big">Chưa có kết quả</div>
+      <div>Chọn khoảng ngày và hai chiều muốn xem, rồi bấm "Xem kết quả".</div>
+    </div>
+  </div>
+</div>
+
+<!-- đào sâu -->
+<div class="overlay" id="drillOverlay">
+  <div class="panel">
+    <div class="panel-head">
+      <div>
+        <div class="eyebrow">Đào sâu nguyên nhân</div>
+        <h2 id="drillTitle">—</h2>
+        <div class="sub" id="drillSub">—</div>
+      </div>
+      <button class="x" id="btnCloseDrill" title="Đóng">×</button>
+    </div>
+    <div class="panel-body" id="drillBody"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.28.1/lib/msal-browser.min.js"></script>
+<script src="config.js"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

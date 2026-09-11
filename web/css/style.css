@@ -1,0 +1,157 @@
+:root{
+  /* Thương hiệu DBV: xanh lá chủ đạo, xanh lục + vàng làm màu thứ cấp */
+  --brand:#00844a;--brand-dark:#04562f;--brand-light:#e3f3ea;--brand-mid:#a8d9bd;
+  --teal:#296a81;--yellow:#f8a41d;--yellow-dark:#8a5a06;--yellow-light:#fef1de;
+  --bg:#f4f7f5;--card:#fff;--ink:#16241d;--muted:#657469;--line:#dfe8e2;
+  --green:#0f8f63;--red:#c93f3f;
+  --shadow:0 6px 22px rgba(15,45,30,.07);--r:16px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:14px/1.55 "Segoe UI",system-ui,-apple-system,sans-serif}
+h1,h2,h3{margin:0;font-weight:800;letter-spacing:-.01em}
+h1{font-size:21px}h2{font-size:15px}h3{font-size:13.5px}
+.sub{color:var(--muted);font-size:12.5px}
+code{background:#eef2ef;padding:1px 5px;border-radius:5px;font-size:11.5px}
+
+/* ---------------------------------------------------------------- khung */
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  background:var(--card);border-bottom:1px solid var(--line);padding:12px 22px}
+.brand{display:flex;align-items:center;gap:11px}
+.mark{width:38px;height:38px;border-radius:10px;background:var(--brand);color:#fff;display:flex;
+  align-items:center;justify-content:center;font-weight:900;font-size:13px;letter-spacing:.02em}
+.brand b{display:block;font-size:15px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chip{background:#f2f5f3;border:1px solid var(--line);border-radius:999px;padding:5px 12px;
+  font-size:11.5px;color:var(--muted);white-space:nowrap}
+.chip.on{background:var(--brand-light);border-color:var(--brand-mid);color:var(--brand-dark)}
+.chip a{color:inherit;margin-left:7px}
+.wrap{max-width:1180px;margin:0 auto;padding:22px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  box-shadow:var(--shadow);padding:18px 20px;margin-bottom:18px}
+
+/* ---------------------------------------------------------------- điều khiển */
+.controls{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:11.5px;color:var(--muted);font-weight:600}
+select,input[type=date]{padding:8px 10px;border:1px solid var(--line);border-radius:9px;
+  background:#fff;font:inherit;font-size:13px;color:var(--ink);min-width:150px}
+select:focus,input:focus{outline:2px solid var(--brand-mid);outline-offset:-1px}
+.btn{border:0;border-radius:9px;padding:9px 16px;font:inherit;font-weight:700;font-size:13px;
+  cursor:pointer;background:#eef2ef;color:var(--ink);white-space:nowrap}
+.btn:hover{background:#e2e8e4}
+.btn.primary{background:var(--brand);color:#fff}
+.btn.primary:hover{background:var(--brand-dark)}
+.btn.sm{padding:6px 11px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ---------------------------------------------------------------- KPI */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:4px}
+.kpi{background:#fbfcfb;border:1px solid var(--line);border-radius:11px;padding:12px 14px}
+.kpi .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.kpi .v{font-size:19px;font-weight:800;margin-top:3px}
+
+/* ---------------------------------------------------------------- heatmap */
+.heat-wrap{overflow:auto;border:1px solid var(--line);border-radius:11px;background:#fff;padding:4px}
+.heat{display:grid;gap:5px;min-width:640px;padding:8px}
+.heat .cell{padding:11px 6px;border-radius:8px;text-align:center;font-size:12px;font-weight:800;
+  overflow-wrap:anywhere}
+.heat .rowlab{background:#f6f8fb;color:var(--ink);text-align:left;padding-left:11px}
+.heat .collab{background:#f2f5f9;color:var(--muted);font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.02em;font-weight:700}
+.heat .corner{background:#fff}
+.heat .cell.clickable{cursor:pointer;transition:transform .08s}
+.heat .cell.clickable:hover{outline:2px solid var(--brand);outline-offset:-2px;transform:scale(1.03);
+  z-index:2;position:relative}
+.heat .cell.empty{background:#fafbfa;color:#c2cbc5;font-weight:600}
+/* Thang benchmark cố định cho Tỷ lệ bồi thường, KHÔNG đổi theo min/max đang hiện */
+.bm1{background:var(--brand-light);color:var(--brand-dark)}
+.bm2{background:var(--yellow-light);color:var(--yellow-dark)}
+.bm3{background:#ffe0b2;color:#8a4b00}
+.bm4{background:#ffb066;color:#6e3800}
+.bm5{background:#f7a8a1;color:#7e2020}
+.bm6{background:#7a1f1f;color:#fff}
+/* Thang tương đối min-max cho các chỉ số khác */
+.hv1{background:#e2f4ec;color:#186b4d}
+.hv2{background:#fff0c8;color:#815d00}
+.hv3{background:#ffd9ab;color:#8a4f00}
+.hv4{background:#f7ada4;color:#7e2020}
+.hv5{background:#df6b64;color:#fff}
+/* Thang so kỳ: tách theo chiều tốt/xấu của từng chỉ số, đậm nhạt theo độ lớn chênh lệch */
+.dg1{background:#e2f4ec;color:#186b4d}
+.dg2{background:#9ed9bb;color:#0f4a34}
+.dg3{background:#4a9f75;color:#fff}
+.db1{background:#fdeaea;color:#8a2222}
+.db2{background:#f0a49b;color:#7e2020}
+.db3{background:#c93f3f;color:#fff}
+.dz{background:#f2f5f9;color:var(--muted)}
+.legend{display:flex;align-items:center;gap:10px;margin-top:11px;font-size:11px;color:var(--muted);
+  flex-wrap:wrap}
+.legend .sw{width:22px;height:11px;border-radius:4px;display:inline-block;margin-right:4px;
+  vertical-align:middle}
+
+.foot-note{margin-top:14px;background:#fbfcfe;border:1px solid var(--line);border-radius:10px;
+  padding:11px 13px;color:var(--muted);font-size:11.5px;line-height:1.5}
+
+/* ---------------------------------------------------------------- bảng */
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child,th.l,td.l{text-align:left}
+th{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;font-weight:700}
+tbody tr:hover{background:#fbfcfb}
+.pos{color:var(--red);font-weight:700}
+.neg{color:var(--green);font-weight:700}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:999px;
+  background:#f2f5f3;color:var(--muted);border:1px solid var(--line)}
+.tag.warn{background:var(--yellow-light);color:var(--yellow-dark);border-color:#f2d9a8}
+
+/* ---------------------------------------------------------------- bridge */
+.bridge{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.bridge .step{flex:1;min-width:110px;background:#fbfcfb;border:1px solid var(--line);
+  border-radius:10px;padding:10px 12px;text-align:center}
+.bridge .step .k{font-size:11px;color:var(--muted)}
+.bridge .step .v{font-size:16px;font-weight:800;margin-top:2px}
+
+/* ---------------------------------------------------------------- lớp phủ */
+.overlay{position:fixed;inset:0;background:rgba(10,25,18,.45);display:none;align-items:center;
+  justify-content:center;padding:22px;z-index:50}
+.overlay.open{display:flex}
+.panel{background:var(--card);border-radius:var(--r);max-width:960px;width:100%;max-height:92vh;
+  overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.panel-head{background:linear-gradient(135deg,var(--brand-dark),var(--brand));color:#fff;
+  padding:18px 22px;display:flex;justify-content:space-between;align-items:flex-start;gap:14px;
+  position:sticky;top:0;z-index:1}
+.panel-head .eyebrow{font-size:11px;opacity:.8;text-transform:uppercase;letter-spacing:.05em}
+.panel-head h2{font-size:18px;margin-top:2px}
+.panel-head .sub{color:rgba(255,255,255,.82)}
+.panel-body{padding:20px 22px}
+.x{background:rgba(255,255,255,.18);border:0;color:#fff;width:30px;height:30px;border-radius:8px;
+  font-size:17px;cursor:pointer;flex:none}
+.x:hover{background:rgba(255,255,255,.3)}
+.sec{margin-top:20px}
+.sec:first-child{margin-top:0}
+.sec>h3{margin-bottom:8px}
+
+/* ---------------------------------------------------------------- trạng thái */
+.spinner{width:15px;height:15px;border:2px solid var(--brand-mid);border-top-color:var(--brand);
+  border-radius:50%;display:none;animation:spin .7s linear infinite}
+.spinner.on{display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.status{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:12.5px;min-height:20px}
+.err{background:#fdeaea;border:1px solid #f3c9c9;color:#8a2222;border-radius:10px;padding:11px 14px;
+  font-size:12.5px;margin-top:12px}
+.empty-state{text-align:center;padding:46px 20px;color:var(--muted)}
+.empty-state .big{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:6px}
+
+/* ---------------------------------------------------------------- đăng nhập */
+.gate{max-width:470px;margin:56px auto;text-align:center}
+.gate .mark{width:52px;height:52px;font-size:17px;margin:0 auto 16px}
+.gate h1{margin-bottom:8px}
+.gate .btn{margin-top:18px}
+
+@media (max-width:640px){
+  .wrap{padding:14px}
+  .topbar{padding:10px 14px}
+  select,input[type=date]{min-width:0;width:100%}
+  .field{flex:1 1 140px}
+}

@@ -171,6 +171,42 @@ free 2 vCPU/16GB (rộng hơn Render Free 512MB rất nhiều), ngủ sau 48 gi�
 - Đối chiếu lại sau dọn dẹp: Live kỳ 2026-01→07 ra LR 64,8820%, nguồn Cache nạp OK, mốc làm mới đọc
   được bình thường.
 
+### 3.2e. Bản web tĩnh trong `web/` — Netlify, không cần backend (11/09/2026)
+Hugging Face nay bắt trả phí cho Space kiểu Docker và Gradio, chỉ còn Static miễn phí. Trước khi bỏ
+Netlify lần nữa, đã kiểm chứng hai điều và kết quả mở lại đường đi:
+- `api.powerbi.com` **bật CORS**: preflight từ origin `https://dbv-analytics.netlify.app` trả về
+  `Access-Control-Allow-Origin` đúng origin đó. Trình duyệt gọi thẳng `executeQueries` được, không cần
+  server trung gian.
+- Vùng Live trong `server.py` dài 842 dòng nhưng chỉ chạm `engine.py` 7 lần và pandas 1 lần: nó chỉ
+  dựng DAX, đọc 4 số thô rồi chia. JavaScript làm được hết.
+
+Đã dựng `app/web/` (tách hẳn khỏi bản Python, xem `web/README.md`): `model.js` bản đồ chiều,
+`dax.js` dựng câu DAX thuần chuỗi, `metrics.js` toán nghiệp vụ, `fabric.js` MSAL + gọi API,
+`query.js` cache, `app.js` giao diện. Thêm `netlify.toml` (publish thư mục `web`).
+
+**Đối chiếu bằng máy, không bằng mắt**: `web/verify_vs_python.mjs` chạy bản JavaScript trên Fabric
+thật, `web/verify_vs_python.py` chạy bản Python trên đúng tham số đó rồi so từng con số với dung sai
+1e-9. Kết quả 11/09/2026, kỳ 2026-01→07: **khớp tuyệt đối** trên toàn danh mục, 54 ô lưới Kênh × Giá
+trị xe, coverage, một đoạn đào sâu, bridge và 10 driver.
+
+**Hai lỗi model phát hiện khi soi bảng nguyên nhân — bản Python CŨNG CÒN:**
+1. Chiều **"Nhóm thời gian sử dụng xe"** cho tỷ lệ bồi thường 3.152%. Cột nằm trên chính bảng
+   `DT kế toán`, không liên kết sang hai bảng bồi thường: phí chia đúng nhưng bồi thường giữ nguyên
+   của cả đoạn và bị đếm lại ở từng nhóm. Đo toàn danh mục: tổng bồi thường 6 nhóm = **6,000 lần**
+   tổng thật. Bản web bỏ hẳn chiều này.
+2. Ba chiều chỉ có bên bồi thường (**nhomgara, garatt, nhommucdo**): tổng phí các nhóm lần lượt bằng
+   **5,000 / 5.393,000 / 5,000 lần** tổng thật, vì model không chia phí theo chúng. Đây là hành vi đã
+   biết và chấp nhận của báo cáo BI, nhưng trong bảng quét nguyên nhân chúng luôn chiếm hết đầu bảng
+   với tỷ trọng 100%. Bản web vẫn cho chọn làm chiều bản đồ nhiệt (kèm cảnh báo) nhưng loại khỏi lượt
+   quét tự động.
+   Kết quả kiểm 27 chiều: 23 chiều còn lại tỷ lệ tổng/tổng đều trong khoảng 0,947 đến 1,062, bình thường.
+
+**Chưa làm ở bản web**: Decomposition Tree, xuất Excel, ô chọn chiều có tìm kiếm, nút "Open Highest
+Impact Segment". Ba nguồn CSV/Cache/Kéo-về không thể có trên bản tĩnh (cần pandas và ổ đĩa).
+
+**Cần IT thêm redirect URI kiểu Single-page application** (khác kiểu Mobile and desktop đã đăng ký cho
+bản Python): `http://localhost:8788/` để test trên máy và `https://<domain-netlify>/` sau khi deploy.
+
 ### 3.3. Chưa làm / chờ
 1. **IT đăng ký redirect URI** (Phần 3.4). Chưa có thì nút "Đăng nhập Microsoft" sẽ bị Microsoft báo lỗi
    `AADSTS50011`; trên máy tạm dùng nút "Đăng nhập bằng mã (thử trên máy)".
