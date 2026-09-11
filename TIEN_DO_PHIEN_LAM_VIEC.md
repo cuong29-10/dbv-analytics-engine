@@ -153,6 +153,24 @@ URI và cờ Secure của cookie), `DBV_LOGIN_REQUIRED` (mặc định 1 khi có
   trần. Nguồn **Live Fabric** chỉ giữ lưới kết quả, không đáng kể — đây là lý do đặt Live làm mặc định.
 - Phiên tự hết hạn sau 12 giờ không dùng (`SESSION_IDLE_SECONDS`), dọn trong `_purge_idle()`.
 
+### 3.2d. Đổi nơi host: Render -> Hugging Face Spaces (11/09/2026)
+Render Free nay **bắt xác minh thẻ tín dụng** mới cho deploy — người dùng không có thẻ, nên bỏ Render
+(đã xoá `render.yaml`). Chuyển sang **Hugging Face Spaces**: đăng ký bằng email, không cần thẻ, máy
+free 2 vCPU/16GB (rộng hơn Render Free 512MB rất nhiều), ngủ sau 48 giờ không ai dùng.
+
+- Thêm `Dockerfile` (python:3.13-slim, chạy user 1000, `PORT=7860` đúng cổng Spaces mong đợi) và
+  `README.md` có front matter `sdk: docker`, `app_port: 7860` — Spaces đọc file này để cấu hình.
+- Thêm `.dockerignore`. **Bắt buộc**: Docker KHÔNG đọc `.gitignore`, lần build đầu đã copy cả
+  `fabric_token_cache.bin`, `fabric_config.json` và toàn bộ parquet vào image.
+- `DATA_DIR` nhận biến `DBV_DATA_DIR` (container không có `pipeline/data` cạnh mã nguồn).
+- **Đã build và chạy thử bằng Docker trên máy**, đúng cách Spaces sẽ làm: image lên được, `/` trả 200,
+  `/api/status` báo `hosted:true, loginRequired:true`, trong image không còn file nhạy cảm nào.
+- Gỡ nốt `/api/data_package` + `SYNC_TOKEN` + `sync_token.txt` + `lan_ip()`: tính năng đồng bộ đã bỏ ở
+  mục 3.2b nên endpoint tải cả gói parquet không còn ai dùng, để lại trên web là một cửa tải dữ liệu
+  thừa.
+- Đối chiếu lại sau dọn dẹp: Live kỳ 2026-01→07 ra LR 64,8820%, nguồn Cache nạp OK, mốc làm mới đọc
+  được bình thường.
+
 ### 3.3. Chưa làm / chờ
 1. **IT đăng ký redirect URI** (Phần 3.4). Chưa có thì nút "Đăng nhập Microsoft" sẽ bị Microsoft báo lỗi
    `AADSTS50011`; trên máy tạm dùng nút "Đăng nhập bằng mã (thử trên máy)".

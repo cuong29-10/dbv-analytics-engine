@@ -13,14 +13,12 @@ import io
 import json
 import os
 import re
-import secrets
 import shutil
 import socket
 import sys
 import threading
 import time
 import webbrowser
-import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -54,9 +52,10 @@ if STANDALONE:
         if not os.path.isfile(_dst) and os.path.isfile(_src):
             shutil.copyfile(_src, _dst)
 else:
-    DATA_DIR = os.path.join(PIPE_DIR, "data")
+    # Trong container (Hugging Face Spaces...) không có thư mục pipeline/ nằm cạnh — DBV_DATA_DIR chỉ ra
+    # chỗ ghi được để giữ cache parquet khi ai đó bấm "Kéo dữ liệu từ Fabric về".
+    DATA_DIR = os.environ.get("DBV_DATA_DIR") or os.path.join(PIPE_DIR, "data")
 UI_FILE = os.path.join(BASE_DIR, "ui.html")
-SYNC_TOKEN_FILE = os.path.join(HERE, "sync_token.txt")
 PORT = int(os.environ.get("PORT", "8787"))
 
 # Ưu tiên bản engine.py nằm cạnh server.py (bundle standalone luôn có sẵn bản này) — nếu không có
@@ -109,33 +108,10 @@ except ImportError:
 
 # ------------------------------------------------------------ phiên & quyền
 # Bản web: mỗi trình duyệt một phiên (cookie), đăng nhập bằng tài khoản Microsoft của chính người đó
-# (xem webauth.py). Không còn token owner/guest trong link. Riêng SYNC_TOKEN vẫn lưu ra file, sống qua
-# các lần khởi động lại, để app standalone của người khác kéo được gói dữ liệu qua /api/data_package.
+# (xem webauth.py). Không còn token owner/guest trong link.
 OPEN_PATHS = {"/api/status", "/api/fabric_status", "/api/fabric_login_start", "/api/fabric_login_wait",
               "/api/fabric_logout"}
 
-
-def get_or_create_sync_token():
-    if os.path.isfile(SYNC_TOKEN_FILE):
-        return open(SYNC_TOKEN_FILE, encoding="utf-8").read().strip()
-    tok = secrets.token_urlsafe(24)
-    with open(SYNC_TOKEN_FILE, "w", encoding="utf-8") as f:
-        f.write(tok)
-    return tok
-
-
-SYNC_TOKEN = get_or_create_sync_token()
-
-
-def lan_ip():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        s.connect(("8.8.8.8", 80))
-        return s.getsockname()[0]
-    except Exception:  # noqa: BLE001
-        return "127.0.0.1"
-    finally:
-        s.close()
 
 STORE = WA.SessionScoped("store", lambda: {"pol": None, "clm": None, "source": None, "loadedAt": None,
                                            "lastValidate": None})
@@ -1685,34 +1661,6 @@ def h_fabric_progress(_body):
     return FABRIC.progress_snapshot()
 
 
-def h_get_data_package(handler, token):
-    """GET nhị phân (zip) — không qua _send_json vì trả file, không phải JSON. Chấp nhận owner,
-    guest, hoặc SYNC_TOKEN (token sống lâu dài, để app standalone của người khác không bị gãy
-    cấu hình mỗi lần bạn khởi động lại server)."""
-    if not (token and token == SYNC_TOKEN):
-        handler._send_json({"error": "Token không hợp lệ."}, code=403)
-        return
-    polp = os.path.join(DATA_DIR, "clean_policy.parquet")
-    clmp = os.path.join(DATA_DIR, "clean_claims.parquet")
-    if not (os.path.isfile(polp) and os.path.isfile(clmp)):
-        handler._send_json({"error": "Máy nguồn chưa có dữ liệu đã làm sạch để đóng gói."}, code=404)
-        return
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-        z.write(polp, "clean_policy.parquet")
-        z.write(clmp, "clean_claims.parquet")
-        z.writestr("meta.json", json.dumps(
-            {"loadedAt": STORE.get("loadedAt"), "source": STORE.get("source"),
-             "packagedAt": time.strftime("%Y-%m-%d %H:%M:%S")}, ensure_ascii=False))
-    payload = buf.getvalue()
-    handler.send_response(200)
-    handler.send_header("Content-Type", "application/zip")
-    handler.send_header("Content-Disposition", 'attachment; filename="dbv_data_package.zip"')
-    handler.send_header("Content-Length", str(len(payload)))
-    handler.end_headers()
-    handler.wfile.write(payload)
-
-
 ROUTES = {"/api/validate": h_validate, "/api/analyze": h_analyze,
           "/api/drilldown": h_drilldown,
           "/api/fabric_status": h_fabric_status,
@@ -1846,12 +1794,7 @@ class Handler(BaseHTTPRequestHandler):
             }
             if STORE.get("lastValidate"):
                 out["lastValidate"] = STORE["lastValidate"]
-            if not STANDALONE and not WA.HOSTED:
-                host = self.headers.get("Host", f"{lan_ip()}:{PORT}")
-                out["dataPackageUrl"] = f"http://{host}/api/data_package?token={SYNC_TOKEN}"
             self._send_json(out)
-        elif path == "/api/data_package":
-            h_get_data_package(self, token)
         elif not self._logged_in():
             self._send_json({"error": "Cần đăng nhập Microsoft trước."}, code=401)
         elif path == "/api/decompose_export":
@@ -1949,10 +1892,6 @@ def run_web():
     print(f"  Redirect URI dang ky voi Entra ID: {WA.REDIRECT_URI}", flush=True)
     print(f"  Bat buoc dang nhap: {'co' if WA.LOGIN_REQUIRED else 'khong (dat DBV_LOGIN_REQUIRED=1 de bat)'}",
           flush=True)
-    if not WA.HOSTED:
-        print("-" * 70, flush=True)
-        print("Dong bo du lieu cho app standalone cua nguoi khac (token nay KHONG doi khi khoi dong lai):", flush=True)
-        print(f'  sourceHost: "{lan_ip()}:{PORT}"   syncToken: "{SYNC_TOKEN}"', flush=True)
     print("=" * 70, flush=True)
     try:
         srv.serve_forever()
