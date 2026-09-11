@@ -28,14 +28,37 @@ PORT = int(os.environ.get("PORT", "8787"))
 BASE_URL = f"http://localhost:{PORT}"
 REDIRECT_URI = BASE_URL + "/auth/callback"
 
+# Bản đóng gói .exe: một máy một người dùng, nên giữ phiên đăng nhập ra file cạnh .exe để mở lại app
+# không phải đăng nhập lại. Bản chạy từ mã nguồn để None, phiên chỉ sống trong bộ nhớ.
+PERSIST_FILE = None
+
 _SESSIONS = {}
 _LOCK = threading.Lock()
 _CTX_SESSION = contextvars.ContextVar("dbv_session", default=None)
 
 
 def _new_session():
+    cache = None
+    if PERSIST_FILE and os.path.isfile(PERSIST_FILE):
+        try:
+            cache = open(PERSIST_FILE, encoding="utf-8").read()
+        except OSError:
+            cache = None
     return {"sid": secrets.token_urlsafe(32), "created": time.time(), "last": time.time(),
-            "cache": None, "account": None, "auth_flow": None, "device_flow": None, "scoped": {}}
+            "cache": cache, "account": None, "auth_flow": None, "device_flow": None, "scoped": {}}
+
+
+def _persist(sess):
+    if not PERSIST_FILE:
+        return
+    try:
+        if sess.get("cache"):
+            with open(PERSIST_FILE, "w", encoding="utf-8") as f:
+                f.write(sess["cache"])
+        elif os.path.isfile(PERSIST_FILE):
+            os.remove(PERSIST_FILE)
+    except OSError:
+        pass
 
 
 def _purge_idle():
@@ -168,6 +191,7 @@ def _session_app(fabric, sess):
 def _save(sess, cache):
     if cache.has_state_changed:
         sess["cache"] = cache.serialize()
+        _persist(sess)
 
 
 def account(fabric, sess):
@@ -201,6 +225,7 @@ def logout(fabric, sess):
     sess["auth_flow"] = None
     sess["device_flow"] = None
     sess["scoped"] = {}
+    _persist(sess)
 
 
 # ---- authorization-code + PKCE

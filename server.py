@@ -13,7 +13,6 @@ import io
 import json
 import os
 import re
-import shutil
 import socket
 import sys
 import threading
@@ -28,37 +27,31 @@ from openpyxl import Workbook
 
 import webauth as WA
 
-# STANDALONE=True khi chạy dưới dạng .exe đóng gói bằng PyInstaller (đặt cờ "frozen" tự động) —
-# dùng cho bản demo standalone gửi đi, khác với bản LAN-share dùng trong nội bộ (server.py chạy
-# thẳng bằng py -3.13). Bản standalone: không cần token, nghe loopback, dữ liệu nhúng sẵn, tự mở
-# trình duyệt — không có gì gửi ra ngoài máy cả.
+# STANDALONE=True khi chạy dưới dạng .exe đóng gói bằng PyInstaller (cờ "frozen" do PyInstaller đặt).
+# Hai bản chạy cùng một đường: nghe loopback, tự mở trình duyệt, đăng nhập Microsoft theo từng người.
+# Khác nhau đúng ba chỗ: nơi đọc file đi kèm (_MEIPASS), nơi ghi cache dữ liệu (cạnh .exe), và phiên
+# đăng nhập được giữ ra file để mở lại app không phải đăng nhập lại.
 STANDALONE = getattr(sys, "frozen", False)
 BASE_DIR = sys._MEIPASS if STANDALONE else os.path.dirname(os.path.abspath(__file__))  # noqa: SLF001
 HERE = os.path.dirname(os.path.abspath(__file__))
 PIPE_DIR = os.path.abspath(os.path.join(HERE, "..", "..", "pipeline"))
 # DATA_DIR: nơi đọc/ghi clean_policy/clean_claims.parquet. Ở bản dev là pipeline/data, sống ngay
-# trong repo. Ở bản đóng gói .exe KHÔNG thể dùng thẳng thư mục giải nén tạm (sys._MEIPASS) làm nơi
-# GHI — nó bị xoá và dựng lại HOÀN TOÀN MỚI mỗi lần mở lại .exe, nên "Kéo dữ liệu mới nhất" ghi vào
-# đó sẽ mất ngay khi đóng app. Dùng thư mục cạnh chính file .exe (sys.executable, SỐNG QUA các lần mở
-# lại — cùng nguyên tắc đã áp dụng cho fabric_token_cache.bin) làm DATA_DIR chính thức, copy dữ liệu
-# cache đóng gói sẵn (trong _MEIPASS) sang đó đúng MỘT LẦN nếu chưa có gì — từ đó về sau DATA_DIR luôn
-# là một chỗ duy nhất, dù đang là bản cache gốc hay bản mới kéo về từ Fabric/PBIX.
+# trong repo. Ở bản đóng gói .exe KHÔNG dùng được thư mục giải nén tạm (sys._MEIPASS) làm nơi GHI —
+# nó bị xoá và dựng lại hoàn toàn mới mỗi lần mở lại .exe. Dùng thư mục cạnh chính file .exe
+# (sys.executable, sống qua các lần mở lại — cùng nguyên tắc đã áp dụng cho fabric_token_cache.bin).
+# Bản đóng gói KHÔNG nhúng sẵn dữ liệu: thư mục này chỉ sinh ra khi người dùng thật sự bấm "Kéo dữ
+# liệu từ Microsoft Fabric về", nhờ vậy file gửi đi nhẹ và ai chỉ dùng kết nối trực tiếp thì không có
+# dữ liệu nào nằm lại trên máy.
 if STANDALONE:
     DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "data")
-    os.makedirs(DATA_DIR, exist_ok=True)
-    for _fn in ("clean_policy.parquet", "clean_claims.parquet"):
-        _dst = os.path.join(DATA_DIR, _fn)
-        _src = os.path.join(BASE_DIR, "data", _fn)
-        if not os.path.isfile(_dst) and os.path.isfile(_src):
-            shutil.copyfile(_src, _dst)
 else:
-    # Trong container (Hugging Face Spaces...) không có thư mục pipeline/ nằm cạnh — DBV_DATA_DIR chỉ ra
-    # chỗ ghi được để giữ cache parquet khi ai đó bấm "Kéo dữ liệu từ Fabric về".
-    DATA_DIR = os.environ.get("DBV_DATA_DIR") or os.path.join(PIPE_DIR, "data")
+    DATA_DIR = os.path.join(PIPE_DIR, "data")
 UI_FILE = os.path.join(BASE_DIR, "ui.html")
+if STANDALONE:
+    WA.PERSIST_FILE = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "fabric_token_cache.bin")
 PORT = int(os.environ.get("PORT", "8787"))
 
-# Ưu tiên bản engine.py nằm cạnh server.py (bundle standalone luôn có sẵn bản này) — nếu không có
+# Ưu tiên bản engine.py nằm cạnh server.py (bản đóng gói luôn có sẵn) — nếu không có
 # thì lấy bản sống trong pipeline/ (đúng luồng phát triển nội bộ, luôn mới nhất).
 sys.path.insert(0, BASE_DIR)
 try:
@@ -1469,8 +1462,7 @@ def h_decompose_detail(body):
 def h_decompose_export(handler, token, qs):
     """GET nhị phân (xlsx) — không qua _send_json vì trả file. Path truyền qua query string dạng JSON
     (không có phần thân POST khi trình duyệt tải file trực tiếp qua thẻ <a>/window.location).
-    Bản standalone không có hệ thống token (xem STANDALONE ở đầu file) nên phải bỏ qua kiểm tra ở đó,
-    giống mọi handler khác — quên bước này là nguyên nhân lỗi 403 đã gặp thật khi test bản đóng gói."""
+"""
     if STORE["pol"] is None or STORE["clm"] is None:
         handler._send_json({"error": "Chưa có dữ liệu đã nạp."}, code=400)
         return
@@ -1516,7 +1508,7 @@ def h_decompose_export(handler, token, qs):
 # app/flow/cache đang dở giữa hai request bằng biến module — chỉ một phiên đăng nhập Fabric
 # chạy cùng lúc trên một server, đủ dùng cho mô hình một chủ đầu mối nạp dữ liệu.
 def fabric_token():
-    """Token Fabric của phiên đang xử lý (bản web); bản standalone/CLI rơi về token cache file cũ."""
+    """Token Fabric của phiên đang xử lý; gọi ngoài phạm vi request (CLI) thì rơi về token cache file."""
     if not FABRIC:
         return None
     sess = WA.current()
@@ -1697,10 +1689,6 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Set-Cookie", WA.cookie_header_value(self._sess))
 
     def _open_session(self):
-        # Bản standalone không có phiên: mọi state rơi về dict toàn cục như trước.
-        if STANDALONE:
-            self._sess, self._sess_new = None, False
-            return None
         self._sess, self._sess_new = WA.get_or_create(self.headers.get("Cookie"))
         return WA.bind(self._sess)
 
@@ -1746,7 +1734,7 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(html)
         elif path == "/auth/login":
-            if STANDALONE or not FABRIC:
+            if not FABRIC:
                 self._redirect(WA.error_redirect("Bản này không có đăng nhập Microsoft."))
                 return
             try:
@@ -1754,7 +1742,7 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:  # noqa: BLE001
                 self._redirect(WA.error_redirect(f"Không khởi tạo được đăng nhập: {e}"))
         elif path == "/auth/callback":
-            if STANDALONE or not FABRIC:
+            if not FABRIC:
                 self._redirect("/")
                 return
             params = {k: v[0] for k, v in qs.items()}
@@ -1822,39 +1810,6 @@ class ThreadingHTTPServer6(ThreadingHTTPServer):
     address_family = socket.AF_INET6
 
 
-def run_standalone():
-    """Bản demo standalone: không đăng nhập, chỉ nghe loopback, dữ liệu nhúng sẵn nạp ngay lúc mở,
-    tự bật trình duyệt. Đóng cửa sổ này (hoặc Ctrl+C) là tắt hẳn ứng dụng."""
-    print("=" * 70, flush=True)
-    print("DBV Analytics Engine - Demo standalone", flush=True)
-    print("Dang nap du lieu nhung sen trong file nay...", flush=True)
-    try:
-        result = h_validate({"source": "pipeline"})
-        if "error" in result:
-            print("LOI nap du lieu:", result["error"], flush=True)
-        else:
-            print(f"Da nap xong: {result['policyCheck']['rows']:,} hop dong, "
-                  f"{result['claimsCheck']['rows']:,} dong boi thuong.", flush=True)
-    except Exception as e:  # noqa: BLE001
-        print("LOI nap du lieu:", e, flush=True)
-
-    try:
-        srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
-    except OSError as e:
-        print(f"Khong mo duoc cong {PORT} — co the app nay dang chay o mot cua so khac roi. Chi tiet: {e}", flush=True)
-        input("Bam Enter de dong...")
-        return
-    url = f"http://127.0.0.1:{PORT}/"
-    print(f"Dang mo trinh duyet tai {url}", flush=True)
-    print("DUNG dong cua so nay khi con muon dung app - dong lai la tat app.", flush=True)
-    print("=" * 70, flush=True)
-    threading.Timer(1.0, lambda: webbrowser.open(url)).start()
-    try:
-        srv.serve_forever()
-    except KeyboardInterrupt:
-        pass
-
-
 def run_local():
     """App chạy trên máy của từng người: chỉ nghe loopback, tự mở trình duyệt. Mỗi người đăng nhập
     bằng tài khoản Power BI của chính mình nên Fabric áp đúng phân quyền dữ liệu của họ."""
@@ -1862,8 +1817,15 @@ def run_local():
     # IPv6 thất bại rồi mới thử lại — đo được 2,05 giây/request so với 0,03 giây khi gọi thẳng
     # 127.0.0.1. Redirect URI đăng ký với Entra ID là localhost nên phải nghe cả hai, mỗi họ địa chỉ
     # một socket riêng, vẫn chỉ loopback: máy khác trong mạng không vào được.
-    srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
-    srv6 = ThreadingHTTPServer6(("::1", PORT), Handler)
+    try:
+        srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+        srv6 = ThreadingHTTPServer6(("::1", PORT), Handler)
+    except OSError as e:
+        print(f"Khong mo duoc cong {PORT} — co the app dang chay o mot cua so khac roi. Chi tiet: {e}",
+              flush=True)
+        if STANDALONE:
+            input("Bam Enter de dong...")
+        return
     threading.Thread(target=srv6.serve_forever, daemon=True).start()
     print("=" * 70, flush=True)
     print("DBV Analytics Engine", flush=True)
@@ -1878,7 +1840,4 @@ def run_local():
 
 
 if __name__ == "__main__":
-    if STANDALONE:
-        run_standalone()
-    else:
-        run_local()
+    run_local()

@@ -818,8 +818,7 @@ const FMT = {
 };
 
 const state = { source:"csv", files:{policy:null, claims:null}, validated:false,
-  readiness:{}, reasons:{}, dimsAvailable:[], dateRanges:{}, ticked:new Set(), maxStep:1, analyzeMode:"general",
-  standalone:false };
+  readiness:{}, reasons:{}, dimsAvailable:[], dateRanges:{}, ticked:new Set(), maxStep:1, analyzeMode:"general" };
 
 /* ---------------- schema dictionary + template ---------------- */
 function renderDict(tableId, key){
@@ -867,7 +866,7 @@ function chk(level, title, detail){
 }
 function renderAccount(s){
   const chip = document.getElementById("chipAccount");
-  if(s.standalone || !s.fabricAvailable){ chip.style.display = "none"; return; }
+  if(!s.fabricAvailable){ chip.style.display = "none"; return; }
   chip.style.display = "";
   if(s.account){
     chip.classList.add("on");
@@ -884,7 +883,6 @@ async function checkStatus(){
   const res = await fetch("/api/status");
   const s = await res.json();
   SERVER = s;
-  state.standalone = !!s.standalone;
   document.getElementById("chipServer").textContent = "Server: đã kết nối";
   document.getElementById("chipServer").classList.add("on");
   renderAccount(s);
@@ -893,21 +891,6 @@ async function checkStatus(){
   if(authErr){
     history.replaceState(null, "", location.pathname);
     alert("Đăng nhập Microsoft không thành công: " + authErr);
-  }
-
-  if(s.standalone){
-    if(!s.fabricAvailable){
-      document.getElementById("srcCardFabric").style.display = "none";
-      document.getElementById("srcCardFabricLive").style.display = "none";
-    }
-    document.getElementById("chipSource").textContent = "Demo standalone — dữ liệu nhúng sẵn";
-    document.getElementById("chipSource").classList.add("on");
-    if(s.hasData && s.lastValidate){
-      applyValidateResult(s.lastValidate);
-      document.getElementById("loadedAtNote").textContent = "Dữ liệu nhúng sẵn trong file demo · nạp lúc: " + s.loadedAt;
-      advance(2);
-    }
-    return s;
   }
 
   if(s.pipelineDataExists){
@@ -1149,7 +1132,6 @@ async function fabricPull(){
   btn.disabled = false; spin.classList.remove("on");
 }
 
-/* ---------------- sync (app standalone kéo dữ liệu từ máy chia sẻ) ---------------- */
 /* ---------------- CSV dropzones ---------------- */
 function setupDropzone(key, inputId, dzId){
   const dz = document.getElementById(dzId);

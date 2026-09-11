@@ -231,6 +231,29 @@ cầu host thật. Nó độc lập hoàn toàn với bản Python và đã đư
 thì đóng gói `.exe` (mục 4.2 — khi build nhớ `.gitignore`/`.dockerignore` không áp cho PyInstaller,
 phải kiểm tra file nhạy cảm bằng tay).
 
+### 3.2g. Đóng gói lại bản .exe (11/09/2026)
+`build_exe.bat` mới, chạy một lệnh là ra `dist/DBV_Analytics_Engine.exe`. Khác bản demo cũ ba điểm:
+
+1. **KHÔNG nhúng dữ liệu.** Bỏ hai `--add-data` parquet và bỏ đoạn copy dữ liệu nhúng sang `DATA_DIR`
+   lúc khởi động. File còn **171MB** thay vì 209MB, và thư mục `data/` cạnh .exe chỉ sinh ra khi người
+   dùng thật sự bấm "Kéo dữ liệu từ Microsoft Fabric về". Ai chỉ dùng kết nối trực tiếp thì không có
+   dữ liệu nào nằm lại trên máy. Đã kiểm: chạy .exe trong thư mục sạch, gọi Live xong vẫn không có
+   thư mục `data/`.
+2. **Đăng nhập Microsoft y hệt bản chạy từ mã nguồn.** Trước đây bản đóng gói bỏ qua cơ chế phiên nên
+   `/auth/login` không dùng được, chỉ còn device code. Nay dùng chung một đường; riêng bản đóng gói
+   ghi token cache ra `fabric_token_cache.bin` cạnh .exe (`webauth.PERSIST_FILE`) để mở lại app không
+   phải đăng nhập lại.
+3. **Một đường chạy duy nhất**: xoá `run_standalone()`, cả hai bản đều gọi `run_local()`. Nhánh
+   `if(s.standalone)` trong `ui.html` cũng bỏ theo.
+
+**Đã kiểm thật trên file .exe** trong thư mục sạch: trang chủ lên, `/auth/login` chuyển đúng sang
+Microsoft, token đã lưu thì `fabric_status` trả đúng tài khoản, `fabric_live_analyze` kỳ 2026-01→07 ra
+LR 64,8820% — khớp đúng bản chạy từ mã nguồn.
+
+**Rác còn lại trong `dist/`** (đều gitignored, tự quyết định xoá): `DBV_Analytics_Demo.exe` 209MB bản
+cũ có nhúng dữ liệu thật, và `dist/data/` 215MB bản sao parquet chỉ dùng để nhúng. Đã xoá
+`dist/fabric_token_cache.bin` vì đó là token đăng nhập thật bỏ quên từ lần test cũ.
+
 ### 3.3. Chưa làm / chờ
 1. **IT đăng ký redirect URI** (Phần 3.4). Chưa có thì nút "Đăng nhập Microsoft" sẽ bị Microsoft báo lỗi
    `AADSTS50011`; trên máy tạm dùng nút "Đăng nhập bằng mã (thử trên máy)".
