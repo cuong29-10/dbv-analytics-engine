@@ -1,0 +1,2179 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DBV Analytics Engine — Live</title>
+<style>
+:root{
+  /* Thương hiệu DBV: xanh lá chủ đạo, xanh lục + vàng làm màu thứ cấp */
+  --brand:#00844a;--brand-dark:#04562f;--brand-light:#e3f3ea;--brand-mid:#a8d9bd;
+  --teal:#296a81;--teal-dark:#1c4c5e;--teal-light:#e7eff1;
+  --yellow:#f8a41d;--yellow-dark:#8a5a06;--yellow-light:#fef1de;
+  --bg:#f4f7f5;--card:#fff;--ink:#16241d;--muted:#657469;--line:#dfe8e2;
+  --green:#0f8f63;--green-bg:#e4f7ee;--amber:#b3720a;--amber-bg:#fff2d6;--red:#c93f3f;--red-bg:#fdeaea;
+  --shadow:0 6px 22px rgba(15,45,30,.07);--r:16px;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--ink)}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+input[type=checkbox]{accent-color:var(--brand);width:16px;height:16px;cursor:pointer}
+code{background:#eef2f8;padding:1px 5px;border-radius:5px;font-size:11.5px}
+
+.topbar{position:sticky;top:0;z-index:60;background:#fff;border-bottom:1px solid var(--line);
+  padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px;box-shadow:0 2px 10px rgba(20,40,80,.04)}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .mark{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--brand),var(--brand-dark));
+  color:#fff;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:14px}
+.brand b{display:block;font-size:15px}
+.brand small{display:block;color:var(--muted);font-size:11.5px;margin-top:1px}
+.topbar .chips{display:flex;gap:7px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:#f8fafd;border-radius:999px;padding:6px 10px;font-size:11.5px;font-weight:700;color:var(--muted)}
+.chip.on{background:var(--brand-light);border-color:var(--brand-mid);color:var(--brand-dark)}
+.chip.warn{background:var(--red-bg);border-color:#f2c6c6;color:var(--red)}
+
+.server-banner{background:var(--red-bg);color:#8a2222;padding:10px 16px;font-weight:800;text-align:center;font-size:13px}
+
+.stepper{display:flex;align-items:center;gap:0;padding:16px 22px 0;max-width:1180px;margin:0 auto}
+.step-pill{display:flex;align-items:center;gap:9px;padding:9px 14px;border-radius:999px;background:#fff;
+  border:1px solid var(--line);cursor:pointer;flex:1;justify-content:center}
+.step-pill+.step-pill{margin-left:8px}
+.step-pill .num{width:22px;height:22px;border-radius:50%;background:#eef2f8;color:var(--muted);
+  display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:900;flex:none}
+.step-pill span{font-size:12.5px;font-weight:800;color:var(--muted)}
+.step-pill.active{background:var(--brand);border-color:var(--brand)}
+.step-pill.active .num{background:#fff;color:var(--brand)}
+.step-pill.active span{color:#fff}
+.step-pill.done .num{background:var(--green);color:#fff}
+.step-pill.done span{color:var(--ink)}
+.step-pill:not(.reachable){cursor:not-allowed;opacity:.6}
+
+.wrap{max-width:1180px;margin:0 auto;padding:18px 22px 60px}
+.step-panel{display:none}
+.step-panel.active{display:block;animation:fade .18s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+h1{font-size:21px;margin:0 0 3px}
+h2{font-size:16px;margin:0 0 4px}
+h3{font-size:14px;margin:0 0 8px}
+.sub,.muted{color:var(--muted);font-size:12.5px}
+.head-row{margin-bottom:16px}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--shadow)}
+.card+.card{margin-top:14px}
+
+.info-banner{display:flex;align-items:center;gap:10px;background:var(--brand-light);border:1px solid var(--brand-mid);
+  color:var(--brand-dark);border-radius:10px;padding:9px 13px;font-size:12.5px;font-weight:700;margin-bottom:14px}
+
+.source-picker{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.source-card{border:2px solid var(--line);border-radius:var(--r);padding:16px;background:#fff;cursor:pointer;transition:.12s}
+.source-card:hover{border-color:var(--brand-mid)}
+.source-card.selected{border-color:var(--brand);background:var(--brand-light)}
+.source-card .ic{width:38px;height:38px;border-radius:10px;background:var(--brand-light);color:var(--brand);
+  display:flex;align-items:center;justify-content:center;margin-bottom:9px;flex:none}
+.source-card .ic svg{width:20px;height:20px;display:block;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.source-card.selected .ic{background:var(--brand);color:#fff}
+.source-card.live-card{position:relative;overflow:hidden;border-color:var(--brand-mid)}
+.source-card.live-card::after{content:"";position:absolute;top:0;left:-70%;width:45%;height:100%;pointer-events:none;
+  background:linear-gradient(105deg,rgba(255,255,255,0) 0%,rgba(255,255,255,.75) 50%,rgba(255,255,255,0) 100%);
+  transform:skewX(-18deg);animation:liveShine 3.2s ease-in-out infinite}
+.source-card.live-card.selected::after{background:linear-gradient(105deg,rgba(0,132,74,0) 0%,rgba(0,132,74,.16) 50%,rgba(0,132,74,0) 100%)}
+@keyframes liveShine{0%{left:-70%}55%{left:130%}100%{left:130%}}
+.live-tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--brand);
+  background:#fff;border:1px solid var(--brand-mid);border-radius:999px;padding:2px 8px;margin-left:8px;vertical-align:middle}
+.chip.account{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip.account a{color:inherit;text-decoration:underline;margin-left:6px}
+.source-card h3{margin:0 0 4px}
+.source-card p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.5}
+.panel-src{display:none;margin-top:16px}
+.panel-src.active{display:block}
+
+.tpl-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.tpl-card{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fbfcfe}
+.tpl-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:9px}
+.tpl-head b{font-size:13.5px}
+.tpl-head small{display:block;color:var(--muted);margin-top:2px;font-size:11.5px}
+.btn{border:0;border-radius:10px;padding:9px 13px;font-weight:800;font-size:12.5px}
+.btn.primary{background:var(--brand);color:#fff}
+.btn.primary:disabled{background:#bcdfca;cursor:not-allowed}
+.btn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
+.btn.ghost:hover{border-color:var(--brand-mid)}
+.btn.ghost:disabled{opacity:.5;cursor:not-allowed}
+.btn.success{background:var(--green);color:#fff}
+.btn.success:disabled{background:#a9d7c4;cursor:not-allowed}
+.btn.sm{padding:7px 10px;font-size:11.5px;border-radius:8px}
+
+table.dict{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:2px}
+table.dict th,table.dict td{padding:6px 7px;border-bottom:1px solid var(--line);text-align:left}
+table.dict th{color:var(--muted);font-weight:800;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em}
+table.dict td.req{color:var(--green);font-weight:800}
+table.dict td.opt{color:var(--muted)}
+
+.dropzone{margin-top:11px;border:1.5px dashed var(--line);border-radius:11px;padding:16px;text-align:center;
+  background:#fff;transition:.12s}
+.dropzone.drag{border-color:var(--brand);background:var(--brand-light)}
+.dropzone .dz-empty{color:var(--muted);font-size:12px}
+.dropzone .dz-empty b{color:var(--brand);cursor:pointer}
+.dropzone .dz-file{display:none;align-items:center;justify-content:space-between;gap:10px;text-align:left}
+.dropzone.filled .dz-empty{display:none}
+.dropzone.filled .dz-file{display:flex}
+.dz-file .name{font-weight:800;font-size:12.5px}
+.dz-file .meta{color:var(--muted);font-size:11px;margin-top:1px}
+.dz-remove{border:0;background:#eef2f8;border-radius:7px;width:26px;height:26px;font-size:13px;color:var(--muted)}
+
+.pipe-card{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fbfcfe}
+.pipe-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px}
+
+.validate-bar{display:flex;align-items:center;gap:12px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.spinner{width:15px;height:15px;border-radius:50%;border:2px solid var(--brand-mid);border-top-color:var(--brand);
+  animation:spin .7s linear infinite;display:none}
+.spinner.on{display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.status-box{margin-top:14px;display:none}
+.status-box.show{display:block}
+.check-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.check-item{border:1px solid var(--line);border-radius:11px;padding:11px;display:flex;gap:10px;background:#fff}
+.dot{width:10px;height:10px;border-radius:50%;flex:none;margin-top:4px}
+.dot.g{background:var(--green)}.dot.a{background:var(--amber)}.dot.r{background:var(--red)}
+.check-item b{display:block;font-size:12.5px}
+.check-item .d{color:var(--muted);font-size:11.5px;margin-top:2px;line-height:1.45}
+
+.metric-avail{margin-top:12px;border:1px solid var(--line);border-radius:11px;padding:12px;background:#fbfcfe}
+.metric-avail-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12.5px}
+.metric-avail-row .dot{margin-top:0}
+.metric-avail-row .reason{color:var(--muted);font-size:11px;margin-left:auto;text-align:right}
+
+.process-bar{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:16px}
+.process-bar .hint{color:var(--muted);font-size:11.5px}
+
+.metric-toolbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+.tickall{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:800}
+.presetsel{display:flex;align-items:center;gap:8px}
+.presetsel select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:12.5px}
+
+.metric-row{display:grid;grid-template-columns:22px 11px 1.3fr 1.4fr auto;align-items:center;gap:13px;
+  padding:12px 6px;border-bottom:1px solid var(--line)}
+.metric-row:last-child{border-bottom:0}
+.metric-row .dot{margin:0}
+.metric-row b{font-size:13px}
+.metric-row .formula{color:var(--muted);font-size:11.5px;font-family:Consolas,monospace}
+.metric-row .reason{color:var(--red);font-size:11px;text-align:right;font-weight:700}
+.metric-row.disabled b{color:var(--muted)}
+
+.bottom-nav{display:flex;justify-content:space-between;align-items:center;margin-top:16px}
+
+.mode-toggle{display:flex;gap:9px;margin-bottom:14px}
+.mode-tab{flex:1;padding:11px 16px;border-radius:12px;border:1.5px solid var(--line);background:#fff;
+  cursor:pointer;text-align:left;transition:.12s}
+.mode-tab:hover{border-color:var(--brand-mid)}
+.mode-tab b{display:block;font-size:13.5px;color:var(--ink)}
+.mode-tab small{display:block;font-size:11px;color:var(--muted);margin-top:2px;line-height:1.4}
+.mode-tab.active{background:var(--brand-light);border-color:var(--brand)}
+.mode-tab.active b{color:var(--brand-dark)}
+.focus-picker{display:none;background:#fbfcfe;border:1px solid var(--brand-mid);border-radius:12px;
+  padding:14px;margin-bottom:14px}
+.focus-picker.active{display:block}
+.focus-picker-row{display:grid;grid-template-columns:1fr 1.4fr auto;gap:10px;align-items:end;margin-bottom:10px}
+.focus-picker-row:last-of-type{margin-bottom:0}
+.focus-picker .sub{margin-bottom:4px}
+
+.control-strip{display:grid;gap:9px}
+.control-strip label{font-size:11px;color:var(--muted);display:block;margin-bottom:4px;font-weight:700}
+.control-strip select,.control-strip input{width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:12.5px}
+
+/* ---- ô "gõ để tìm" tự dựng, thay cho input+datalist gốc trình duyệt (không style được, hay bị
+   lọc kẹt ở giá trị đang gõ sẵn) ---- */
+.combo-wrap{position:relative}
+.combo-menu{position:absolute;top:100%;left:0;right:0;z-index:80;background:#fff;border:1px solid var(--line);
+  border-radius:8px;margin-top:3px;max-height:230px;overflow:auto;box-shadow:0 10px 28px rgba(10,20,40,.18);display:none}
+.combo-menu.open{display:block}
+.combo-opt{padding:7px 10px;font-size:12.5px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.combo-opt:hover,.combo-opt.hi{background:var(--brand-light)}
+.combo-empty{padding:7px 10px;font-size:12.5px;color:var(--muted)}
+.date-range{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:9px}
+.date-range input[type=date]{color-scheme:light;color:var(--ink);font-weight:700;letter-spacing:.02em;
+  transition:.12s;cursor:text}
+.date-range input[type=date]:hover{border-color:var(--brand-mid)}
+.date-range input[type=date]:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-light)}
+.date-range input[type=date]::-webkit-calendar-picker-indicator{
+  filter:invert(46%) sepia(89%) saturate(423%) hue-rotate(107deg) brightness(93%) contrast(101%);
+  cursor:pointer;border-radius:4px;padding:2px}
+.date-range input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--brand-light)}
+
+.kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin:16px 0}
+.kpi{border:1px solid var(--line);border-radius:11px;padding:12px;background:#fff}
+.kpi small{color:var(--muted);font-size:11px;font-weight:700}
+.kpi b{display:block;font-size:20px;margin:4px 0 2px;color:var(--brand-dark)}
+.kpi span{color:var(--muted);font-size:11px}
+
+.heat-wrap{overflow:auto;border:1px solid var(--line);border-radius:11px;background:#fff;padding:4px}
+.heat{display:grid;gap:5px;min-width:640px;padding:8px}
+.heat .cell{padding:11px 6px;border-radius:8px;text-align:center;font-size:12px;font-weight:800;overflow-wrap:anywhere}
+.heat .rowlab{background:#f6f8fb;color:var(--ink);text-align:left;padding-left:11px;font-weight:800}
+.heat .collab{background:#f2f5f9;color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.02em}
+.heat .corner{background:#fff}
+/* Thang tương đối (min-max) — dùng cho chỉ số không phải LR, hoặc chế độ so sánh kỳ */
+.hv1{background:#e2f4ec;color:#186b4d}
+.hv2{background:#fff0c8;color:#815d00}
+.hv3{background:#ffd9ab;color:#8a4f00}
+.hv4{background:#f7ada4;color:#7e2020}
+.hv5{background:#df6b64;color:#fff}
+/* Thang so kỳ (YoY/MoM) — tách theo CHIỀU tốt/xấu của từng chỉ số (xem HIGHER_IS_WORSE), không theo
+   giá trị tăng=đỏ/giảm=xanh cố định. Đậm nhạt theo độ lớn |delta| so với các ô đang hiện. */
+.dg1{background:#e2f4ec;color:#186b4d}
+.dg2{background:#9ed9bb;color:#0f4a34}
+.dg3{background:#4a9f75;color:#fff}
+.db1{background:#fdeaea;color:#8a2222}
+.db2{background:#f0a49b;color:#7e2020}
+.db3{background:#c93f3f;color:#fff}
+.dz{background:#f2f5f9;color:var(--muted)}
+/* Thang benchmark cố định — dùng cho Tỷ lệ bồi thường, KHÔNG đổi theo min/max đang hiện */
+.bm1{background:var(--brand-light);color:var(--brand-dark)}        /* dưới 60% */
+.bm2{background:var(--yellow-light);color:var(--yellow-dark)}       /* 60-65% */
+.bm3{background:#ffe0b2;color:#8a4b00}                              /* 65-70% */
+.bm4{background:#ffb066;color:#6e3800}                              /* 70-75% */
+.bm5{background:#f7a8a1;color:#7e2020}                              /* 75-85% */
+.bm6{background:#7a1f1f;color:#fff}                                 /* trên 85% */
+.legend{display:flex;align-items:center;gap:8px;margin-top:11px;font-size:11px;color:var(--muted);flex-wrap:wrap}
+.legend .sw{width:22px;height:11px;border-radius:4px;display:inline-block;margin-right:4px}
+
+.foot-note{margin-top:14px;background:#fbfcfe;border:1px solid var(--line);border-radius:10px;padding:11px 13px;
+  color:var(--muted);font-size:11.5px;line-height:1.5}
+.log-box{margin-top:10px;max-height:220px;overflow:auto;background:#0d1424;color:#c9d6f2;border-radius:9px;
+  padding:10px 12px;font-size:11px;font-family:Consolas,monospace;white-space:pre-wrap;display:none}
+.log-box.show{display:block}
+
+/* ---- tiến độ kéo dữ liệu Fabric — theo đúng theme sáng của app, thay cho hộp log đen ---- */
+.fabric-progress{margin-top:12px;padding:14px 16px;background:#fff;border:1px solid var(--line);border-radius:12px}
+.fabric-progress-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:8px}
+.fabric-progress-head b{font-size:13px;color:var(--ink)}
+.fabric-progress-bar-wrap{background:#eef1ed;border-radius:999px;height:8px;overflow:hidden;position:relative}
+.fabric-progress-bar{position:absolute;top:0;bottom:0;left:-35%;width:35%;background:var(--brand);border-radius:999px;
+  animation:fabricProgressSlide 1.3s ease-in-out infinite}
+.fabric-progress.done .fabric-progress-bar{animation:none;left:0;width:100%}
+.fabric-progress.error .fabric-progress-bar{animation:none;left:0;width:100%;background:var(--red)}
+@keyframes fabricProgressSlide{0%{left:-35%}100%{left:100%}}
+.fabric-progress-stats{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--muted)}
+.fabric-progress-stats span:not(:empty)::before{content:"● ";font-size:8px;vertical-align:middle;color:var(--brand-mid)}
+.log-box-light{margin-top:10px;max-height:220px;overflow:auto;background:#f6f9f7;color:var(--ink);
+  border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-size:11px;
+  font-family:Consolas,monospace;white-space:pre-wrap}
+
+/* Trước dùng --yellow, trùng màu icon tia chớp trong nút -> đổi sang xanh dương sáng để icon nổi bật */
+.btn.warn{background:#2f8fe0;color:#fff}
+.btn.warn:hover{background:#1f78c4}
+.drill-toolbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;
+  margin:14px 0 8px;padding:10px 12px;background:#fbfcfe;border:1px solid var(--line);border-radius:10px}
+.heat .cell.clickable{cursor:pointer;transition:transform .08s}
+.heat .cell.clickable:hover{outline:2px solid var(--brand);outline-offset:-2px;transform:scale(1.03);z-index:2;position:relative}
+
+.dd-overlay{position:fixed;inset:0;background:rgba(10,18,34,.55);z-index:90;display:none;
+  align-items:flex-start;justify-content:center;padding:26px 16px;overflow:auto}
+.dd-overlay.open{display:flex}
+.dd-panel{background:var(--bg);border-radius:16px;max-width:1080px;width:100%;box-shadow:0 24px 60px rgba(10,20,40,.35);
+  overflow:hidden}
+.dd-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:18px 22px;
+  background:linear-gradient(135deg,var(--brand-dark),var(--teal));color:#fff}
+.dd-eyebrow{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;font-weight:900;color:#d3ecdf;margin-bottom:3px}
+.dd-head h2{color:#fff;margin:0 0 3px;font-size:19px}
+.dd-head .sub{color:#dcf0e6}
+.dd-head .close{background:rgba(255,255,255,.18);color:#fff}
+.dd-body{padding:20px 22px 26px;display:grid;gap:16px;max-height:80vh;overflow:auto}
+
+.dd-kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
+.bridge-wrap{display:flex;gap:8px;align-items:stretch;overflow-x:auto;padding-bottom:4px}
+.bridge-step{flex:1;min-width:110px;border-radius:11px;padding:12px 10px;text-align:center;background:#fff;border:1px solid var(--line)}
+.bridge-step.base{background:var(--brand-light);border-color:var(--brand-mid)}
+.bridge-step.result{background:var(--brand-dark);color:#fff;border-color:var(--brand-dark)}
+.bridge-step.pos{background:var(--red-bg);border-color:#f2c6c6}
+.bridge-step.neg{background:var(--green-bg);border-color:#a9dfc6}
+.bridge-step small{display:block;font-size:10.5px;color:inherit;opacity:.75;font-weight:800;text-transform:uppercase}
+.bridge-step b{display:block;font-size:16px;margin-top:5px}
+.bridge-arrow{align-self:center;color:var(--muted);font-size:16px}
+
+.driver-table{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.driver-row{display:grid;grid-template-columns:1.7fr auto 72px 72px 1fr 64px;gap:12px;align-items:center;
+  padding:9px 12px;border-bottom:1px solid var(--line);font-size:12.5px;background:#fff}
+.driver-row:nth-child(even){background:#fafcfa}
+.driver-row:last-child{border-bottom:0}
+.driver-row.head{font-size:10px;text-transform:uppercase;color:var(--muted);font-weight:800;letter-spacing:.03em;
+  background:#f6f9f7;padding:8px 12px}
+.driver-row .num{text-align:right;font-variant-numeric:tabular-nums;font-weight:800}
+.driver-cell-group b{display:block;font-size:12.5px}
+.driver-cell-group small{display:block;color:var(--muted);font-size:10.5px;margin-top:1px}
+.driver-bar-wrap{background:#eef1ed;border-radius:6px;height:8px;overflow:hidden;min-width:60px}
+.driver-bar{height:100%;border-radius:6px;background:var(--muted)}
+#ddTabBadBody .driver-bar{background:var(--red)}
+#ddTabGoodBody .driver-bar{background:var(--green)}
+.driver-badge{font-size:10px;font-weight:900;padding:3px 8px;border-radius:999px;white-space:nowrap;justify-self:start}
+.driver-badge.up{background:var(--red-bg);color:var(--red)}
+.driver-badge.down{background:var(--green-bg);color:var(--green)}
+.driver-lowsample{display:block;color:var(--amber);font-weight:800;font-size:9.5px;text-align:right}
+
+.dd-tabs{display:flex;gap:8px;margin-bottom:10px}
+.dd-tab{padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:#fff;cursor:pointer;
+  font-size:12px;font-weight:800;color:var(--muted)}
+.dd-tab:hover{border-color:var(--brand-mid)}
+.dd-tab.active.good{background:var(--green-bg);border-color:#a9dfc6;color:var(--green)}
+.dd-tab.active.bad{background:var(--red-bg);border-color:#f2c6c6;color:var(--red)}
+.dd-decomp-btn{margin-top:10px}
+
+.decomp-crumbs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:14px}
+.decomp-crumb{background:#fff;border:1px solid var(--line);border-radius:999px;padding:6px 12px;
+  font-size:11.5px;font-weight:800;color:var(--ink);cursor:pointer}
+.decomp-crumb:hover{border-color:var(--brand-mid)}
+.decomp-crumb.current{background:var(--brand-light);border-color:var(--brand-mid);color:var(--brand-dark);cursor:default}
+.decomp-arrow{color:var(--muted);font-size:12px}
+.decomp-metric{background:linear-gradient(135deg,var(--brand-dark),var(--teal));color:#fff;border-radius:14px;
+  padding:16px 20px;text-align:center;margin-bottom:14px}
+.decomp-metric b{font-size:30px;display:block;margin-top:4px}
+.decomp-metric small{opacity:.85;font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:800}
+.decomp-split-row{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.decomp-split-row select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:12.5px}
+.decomp-row{display:grid;grid-template-columns:1.6fr 90px 1fr 70px;gap:12px;align-items:center;
+  padding:9px 12px;border-bottom:1px solid var(--line);font-size:12.5px;background:#fff;cursor:pointer;transition:.1s}
+.decomp-row:hover{background:var(--brand-light)}
+.decomp-row:last-child{border-bottom:0}
+.decomp-row.head{cursor:default;font-size:10px;text-transform:uppercase;color:var(--muted);font-weight:800;
+  letter-spacing:.03em;background:#f6f9f7;padding:8px 12px}
+.decomp-row.head:hover{background:#f6f9f7}
+.decomp-row .num{text-align:right;font-variant-numeric:tabular-nums;font-weight:800}
+.decomp-bar-wrap{background:#eef1ed;border-radius:6px;height:8px;overflow:hidden}
+.decomp-bar{height:100%;border-radius:6px}
+
+/* ---- màu active chung cho cặp nút chế độ Đào sâu / Khám phá nhanh (không gắn bad/good) ---- */
+.dd-tab.active{background:var(--brand-light);border-color:var(--brand);color:var(--brand-dark);font-weight:800}
+
+/* ---- "Đào sâu" mặc định trong chi tiết ô heatmap: các khối bảng liền kê nhau, mở rộng theo bậc ---- */
+.ds-stack{display:flex;flex-direction:column;gap:14px}
+.ds-lens{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}
+.ds-lens-head{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:9px 12px;background:#f6f9f7;border-bottom:1px solid var(--line);font-size:12.5px;font-weight:800}
+.ds-lens-l3{padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;font-size:11.5px}
+.ds-caret{display:inline-block;width:10px;color:var(--muted);transition:transform .12s;flex:none}
+.ds-caret.open{transform:rotate(90deg)}
+.ds-caret-spacer{display:inline-block;width:10px;flex:none}
+.driver-row.ds-clickable{cursor:pointer}
+.driver-row.ds-clickable:hover{background:var(--brand-light)}
+.ds-children{border-top:1px dashed var(--line)}
+#dsBody[data-dir="bad"] .ds-lens-body .driver-bar{background:var(--red)}
+#dsBody[data-dir="good"] .ds-lens-body .driver-bar{background:var(--green)}
+#dsBody .driver-row.head{background:var(--brand);color:#fff}
+.ds-loading,.ds-empty{padding:8px 12px;font-size:12px;color:var(--muted)}
+
+@media(max-width:980px){
+  .source-picker,.tpl-grid,.check-grid,.kpi-strip{grid-template-columns:1fr 1fr}
+  .metric-row{grid-template-columns:22px 11px 1fr;row-gap:4px}
+  .metric-row .formula,.metric-row .reason{grid-column:3/4}
+}
+@media(max-width:640px){
+  .source-picker,.tpl-grid,.check-grid,.kpi-strip{grid-template-columns:1fr}
+  .stepper{flex-direction:column;gap:8px}
+  .step-pill+.step-pill{margin-left:0}
+  .mode-toggle{flex-direction:column}
+  .focus-picker-row{grid-template-columns:1fr}
+  .decomp-row,.driver-row{grid-template-columns:1.4fr auto}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="mark">DBV</div>
+    <div><b>Analytics Engine · Live</b><small>Tính toán thật trên engine.py và Microsoft Fabric</small></div>
+  </div>
+  <div class="chips">
+    <span class="chip account" id="chipAccount" style="display:none"></span>
+    <span class="chip" id="chipServer">Server: đang kiểm tra…</span>
+    <span class="chip" id="chipSource">Nguồn: chưa chọn</span>
+    <span class="chip" id="chipValid">Kiểm tra: chưa chạy</span>
+    <span class="chip" id="chipMetrics">Chỉ số: 0 đã chọn</span>
+  </div>
+</div>
+
+<div class="stepper">
+  <div class="step-pill active reachable" id="pill1" onclick="goStep(1)"><span class="num">1</span><span>Nhập &amp; kiểm tra dữ liệu</span></div>
+  <div class="step-pill" id="pill2" onclick="goStep(2)"><span class="num">2</span><span>Chọn chỉ số</span></div>
+  <div class="step-pill" id="pill3" onclick="goStep(3)"><span class="num">3</span><span>Phân tích</span></div>
+</div>
+
+<div class="wrap">
+
+  <!-- ============ STEP 1 ============ -->
+  <section class="step-panel active" id="step1">
+    <div class="head-row">
+      <h1>Bước 1 · Nhập &amp; kiểm tra dữ liệu</h1>
+      <div class="sub">Mọi con số đều do engine.py hoặc measure của báo cáo trên Fabric tính ra, không có số liệu giả lập.</div>
+    </div>
+
+    <div class="card" id="ownerDataCard">
+      <h2>Chọn nguồn dữ liệu</h2>
+      <div class="sub" style="margin-bottom:12px">Mỗi người dùng có phiên riêng: dữ liệu bạn nạp hay truy vấn chỉ nằm trong phiên của bạn.</div>
+      <div class="source-picker">
+        <div class="source-card live-card selected" id="srcCardFabricLive" onclick="selectSource('fabric_live')">
+          <div class="ic"><svg viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-.6-7.95A6 6 0 0 1 18 8.5a3.5 3.5 0 0 1-.5 6.96"/><path d="M13 11l-2.5 4h3L11 19"/></svg></div>
+          <h3>Kết nối tính toán trực tiếp với Microsoft Fabric<span class="live-tag">Live</span></h3>
+          <p>Đăng nhập bằng tài khoản Microsoft của bạn, gọi thẳng chỉ số của báo cáo trên Fabric, đúng phần dữ liệu bạn được xem. Số liệu tới lần làm mới gần nhất của báo cáo (06:00 và 12:00 hằng ngày).</p>
+        </div>
+        <div class="source-card" id="srcCardCache" onclick="selectSource('cache')">
+          <div class="ic"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.66 3.13 3 7 3s7-1.34 7-3V6"/><path d="M5 12v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6"/></svg></div>
+          <h3>Sử dụng dữ liệu cache</h3>
+          <p>Xem ngay bằng dữ liệu đã lưu sẵn từ lần nạp gần nhất trên máy chủ, không phải chờ.</p>
+        </div>
+        <div class="source-card" id="srcCardCsv" onclick="selectSource('csv')">
+          <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></div>
+          <h3>Tải lên file CSV</h3>
+          <p>Chủ động, dùng cho dữ liệu tuỳ chỉnh hoặc thử nghiệm. Đọc &amp; kiểm tra thật bằng backend Python.</p>
+        </div>
+        <div class="source-card" id="srcCardFabric" onclick="selectSource('fabric')">
+          <div class="ic"><svg viewBox="0 0 24 24"><path d="M7 17a4 4 0 0 1-.6-7.95A6 6 0 0 1 18 7.5a3.5 3.5 0 0 1-.5 6.96"/><path d="M12 12v9"/><path d="M8.5 17.5L12 21l3.5-3.5"/></svg></div>
+          <h3>Kéo dữ liệu từ Microsoft Fabric về để phân tích</h3>
+          <p>Kéo toàn bộ dữ liệu từ Fabric về máy chủ, làm sạch bằng pipeline rồi lưu cache. Mất khá lâu, dùng khi cần đủ 29 chiều.</p>
+        </div>
+        <div class="source-card" id="srcCardSync" onclick="selectSource('sync')">
+          <div class="ic"><svg viewBox="0 0 24 24"><path d="M20 11A8 8 0 0 0 5.6 6.4L4 8"/><path d="M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14.4 4.6L20 16"/><path d="M20 20v-4h-4"/></svg></div>
+          <h3>Đồng bộ từ máy chia sẻ</h3>
+          <p>Kéo dữ liệu mới nhất từ máy đầu mối qua LAN hoặc Tailscale khi máy này chưa có gì.</p>
+        </div>
+        <div class="source-card" id="srcCardSql" onclick="selectSource('sql')">
+          <div class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/><path d="M8 7h.01M8 17h.01"/></svg></div>
+          <h3>Kết nối SQL Server Data Warehouse</h3>
+          <p>Nạp trực tiếp từ kho dữ liệu SQL Server nội bộ. Đang xây dựng, bản này mới ở mức demo giao diện.</p>
+        </div>
+      </div>
+
+      <!-- SQL Server panel -->
+      <div class="panel-src" id="panelSql">
+        <div class="pipe-card">
+          <b>Kết nối SQL Server Data Warehouse</b>
+          <div class="sub" style="margin-top:4px">Tính năng đang xây dựng — điền thử để xem luồng thao tác, chưa kết nối thật.</div>
+          <div class="control-strip" style="grid-template-columns:1fr 1fr;margin-top:12px">
+            <div><label>Server / Host</label><input type="text" id="sqlHost" placeholder="vd: dwh-sql01.dbvi.local"></div>
+            <div><label>Cổng (Port)</label><input type="text" id="sqlPort" placeholder="1433"></div>
+            <div><label>Tên Database</label><input type="text" id="sqlDb" placeholder="vd: DW_TLBT"></div>
+            <div><label>Xác thực</label>
+              <select id="sqlAuth">
+                <option value="sql">SQL Server Authentication</option>
+                <option value="windows">Windows Authentication</option>
+              </select>
+            </div>
+            <div><label>Tên đăng nhập</label><input type="text" id="sqlUser" placeholder="username"></div>
+            <div><label>Mật khẩu</label><input type="password" id="sqlPass" placeholder="••••••••"></div>
+          </div>
+          <div class="pipe-row" style="margin-top:12px">
+            <button class="btn primary" onclick="sqlServerConnect()">Kết nối &amp; kiểm tra</button>
+            <span class="sub" id="sqlStatusText"></span>
+          </div>
+        </div>
+        <div class="foot-note">Thông tin nhập ở đây không được gửi lên đâu ngoài chính máy chủ local của app này, và cũng chưa được lưu lại — bấm "Kết nối" hiện tại chỉ trả về thông báo tính năng đang xây dựng.</div>
+      </div>
+      <div class="panel-src" id="panelFabric">
+        <div class="pipe-card">
+          <b>Kéo dữ liệu từ Microsoft Fabric</b>
+          <div class="pipe-row" style="margin-top:4px">
+            <div class="sub" id="fabricNote" style="margin:0">Đang kiểm tra…</div>
+          </div>
+
+          <div class="pipe-row">
+            <button class="btn success" id="btnFabricPull" onclick="fabricPull()" disabled>Kéo dữ liệu mới nhất từ Fabric</button>
+            <span class="spinner" id="spinFabricPull"></span>
+          </div>
+        </div>
+        <div class="foot-note">Dùng tài khoản Microsoft đã đăng nhập ở thẻ "Kết nối tính toán trực tiếp". Kéo toàn bộ lịch sử về máy chủ rồi chạy p2_prep.py để làm sạch, mất 15 đến 20 phút vì bảng nguồn tới hàng triệu dòng. Chỉ cần khi muốn đủ 29 chiều hoặc Decomposition Tree nhanh trên bản cache.</div>
+        <div class="fabric-progress" id="fabricProgress" style="display:none">
+          <div class="fabric-progress-head">
+            <b id="fabricProgressPhase">—</b>
+            <span class="sub" id="fabricProgressElapsed"></span>
+          </div>
+          <div class="fabric-progress-bar-wrap"><div class="fabric-progress-bar"></div></div>
+          <div class="fabric-progress-stats">
+            <span id="fabricProgressTable"></span>
+            <span id="fabricProgressRows"></span>
+            <span id="fabricProgressSpeed"></span>
+          </div>
+          <button class="btn ghost sm" type="button" onclick="toggleFabricLog()" style="margin-top:10px">Xem log chi tiết</button>
+          <pre class="log-box-light" id="fabricLog" style="display:none"></pre>
+        </div>
+      </div>
+
+      <!-- Fabric Live panel -->
+      <div class="panel-src" id="panelFabricLive">
+        <div class="pipe-card">
+          <b>Kết nối tính toán trực tiếp với Microsoft Fabric</b>
+          <div class="pipe-row" style="margin-top:4px">
+            <div class="sub" id="fabricLiveNote" style="margin:0">Đang kiểm tra…</div>
+            <a class="btn primary" id="btnMsLogin" href="/auth/login" style="display:none;text-decoration:none">Đăng nhập Microsoft</a>
+            <button class="btn ghost sm" id="btnFabricLogout" onclick="fabricLogout()" style="display:none">Đăng xuất</button>
+            <button class="btn ghost sm" id="btnFabricLogin" onclick="fabricLoginStart()" style="display:none">Đăng nhập bằng mã (thử trên máy)</button>
+            <span class="spinner" id="spinFabricLogin"></span>
+          </div>
+          <div id="fabricLoginBox" style="display:none;margin-top:12px;padding:12px;background:#fff;border:1px solid var(--line);border-radius:10px">
+            <div class="sub">Mở <b id="fabricVerifUri">https://login.microsoft.com/device</b> trên trình duyệt bất kỳ, đăng nhập bằng tài khoản Power BI Pro của bạn rồi nhập mã:</div>
+            <div style="font-size:24px;font-weight:900;letter-spacing:4px;margin:10px 0;color:var(--brand-dark);text-align:center">
+              <span id="fabricUserCode">—</span>
+            </div>
+            <div class="pipe-row">
+              <button class="btn primary" id="btnFabricWait" onclick="fabricLoginWait()">Tôi đã đăng nhập xong, tiếp tục</button>
+              <span class="spinner" id="spinFabricWait"></span>
+              <span class="sub" id="fabricWaitStatus"></span>
+            </div>
+          </div>
+          <div class="pipe-row" style="margin-top:12px;align-items:flex-end;flex-wrap:wrap;gap:12px">
+            <div><label class="sub" style="display:block;margin-bottom:4px">Từ ngày</label>
+              <input type="date" id="liveDFrom" style="padding:8px;border:1px solid var(--line);border-radius:8px"></div>
+            <div><label class="sub" style="display:block;margin-bottom:4px">Đến ngày</label>
+              <input type="date" id="liveDTo" style="padding:8px;border:1px solid var(--line);border-radius:8px"></div>
+            <button class="btn success" id="btnStartLive" onclick="startLiveTest()" disabled>Bắt đầu →</button>
+          </div>
+        </div>
+        <div class="foot-note">Bạn đăng nhập trên trang của Microsoft, mật khẩu không đi qua app. Quyền xin chỉ là đọc dataset Power BI; Fabric tự áp phân quyền dữ liệu (RLS) theo đúng tài khoản của bạn.
+        <br><br>Chế độ này gọi thẳng các chỉ số của báo cáo "Báo cáo quản trị BH XCG" trên Fabric, dưới đúng bộ lọc mà báo cáo đang áp (nghiệp vụ VCX ô tô, nguồn dữ liệu DBV, loại sự kiện thiên tai). Tỷ lệ bồi thường, tần suất và mức độ tổn thất khớp đúng số trên báo cáo Power BI.
+        <br><br>Số liệu lấy tới lần làm mới gần nhất của báo cáo, chạy 06:00 và 12:00 hằng ngày. Mỗi lần đổi khoảng ngày hoặc chọn ô sẽ truy vấn lại Fabric; Khám phá nhanh và Decomposition Tree có thể mất khoảng 1-2 phút.</div>
+      </div>
+
+      <!-- Sync panel -->
+      <div class="panel-src" id="panelSync">
+        <div class="pipe-card">
+          <b>Đồng bộ dữ liệu từ máy chia sẻ</b>
+          <div class="sub" style="margin-top:4px" id="syncNote">Đang kiểm tra cấu hình…</div>
+          <div class="pipe-row">
+            <button class="btn primary" id="btnSyncPull" onclick="runSyncPull()">Đồng bộ dữ liệu mới nhất</button>
+            <span class="spinner" id="spinSync"></span>
+            <span class="sub" id="syncStatusText"></span>
+          </div>
+        </div>
+        <div class="foot-note">Cần file <code>sync_config.json</code> cạnh <code>server.py</code>, chứa địa chỉ và token của máy đầu mối (xem <code>sync_config.example.json</code>). Máy đầu mối phải đang bật và cùng mạng (LAN văn phòng, hoặc cùng mạng riêng ảo kiểu Tailscale) tại thời điểm bấm — nếu không tới được, dữ liệu cũ đã có vẫn dùng tiếp bình thường.</div>
+      </div>
+
+      <!-- CSV panel -->
+      <div class="panel-src active" id="panelCsv">
+        <div class="tpl-grid">
+          <div class="tpl-card">
+            <div class="tpl-head">
+              <div><b>Bảng Hợp đồng (Policy)</b><small id="polCount">—</small></div>
+              <button class="btn ghost sm" onclick="downloadTemplate('policy')">Tải template CSV</button>
+            </div>
+            <table class="dict" id="dictPolicy"></table>
+            <div class="dropzone" id="dzPolicy">
+              <div class="dz-empty">Kéo thả file CSV vào đây, hoặc <b onclick="document.getElementById('filePolicy').click()">chọn file</b></div>
+              <div class="dz-file"><div><div class="name" id="polName">—</div><div class="meta" id="polMeta">—</div></div><button class="dz-remove" onclick="clearFile('policy',event)">✕</button></div>
+              <input type="file" id="filePolicy" accept=".csv" style="display:none">
+            </div>
+          </div>
+          <div class="tpl-card">
+            <div class="tpl-head">
+              <div><b>Bảng Bồi thường (Claims)</b><small id="clmCount">—</small></div>
+              <button class="btn ghost sm" onclick="downloadTemplate('claims')">Tải template CSV</button>
+            </div>
+            <table class="dict" id="dictClaims"></table>
+            <div class="dropzone" id="dzClaims">
+              <div class="dz-empty">Kéo thả file CSV vào đây, hoặc <b onclick="document.getElementById('fileClaims').click()">chọn file</b></div>
+              <div class="dz-file"><div><div class="name" id="clmName">—</div><div class="meta" id="clmMeta">—</div></div><button class="dz-remove" onclick="clearFile('claims',event)">✕</button></div>
+              <input type="file" id="fileClaims" accept=".csv" style="display:none">
+            </div>
+          </div>
+        </div>
+        <div class="validate-bar">
+          <button class="btn primary" id="btnValidateCsv" onclick="runValidateCsv()">Quét &amp; kiểm tra dữ liệu</button>
+          <span class="spinner" id="spinCsv"></span>
+          <span class="sub" id="validateHintCsv">Cần tải lên cả hai file CSV trước.</span>
+        </div>
+      </div>
+
+      <!-- Cache panel -->
+      <div class="panel-src" id="panelCache">
+        <div class="pipe-card">
+          <b>pipeline/data/clean_policy.parquet · clean_claims.parquet</b>
+          <div class="sub" id="cacheNote" style="margin-top:4px">Đang kiểm tra dữ liệu cache…</div>
+          <div class="pipe-row">
+            <button class="btn primary" id="btnLoadCache" onclick="loadCacheData()">Xem ngay</button>
+            <span class="spinner" id="spinCache"></span>
+          </div>
+        </div>
+        <div class="foot-note">Bản dữ liệu đã làm sạch, lưu sẵn trên máy từ lần nạp gần nhất — không phân biệt lần đó tới từ CSV, Power BI hay Fabric. Mở lên dùng ngay, không cần trích xuất hay đăng nhập lại. Phù hợp khi demo nhanh cho người xem không có sẵn kết nối.</div>
+      </div>
+
+    </div>
+
+    <div class="card status-box" id="statusBox">
+      <h2>Kết quả kiểm tra dữ liệu</h2>
+      <div class="check-grid" id="checkGrid"></div>
+      <div class="metric-avail">
+        <h3 style="margin-bottom:6px">Chỉ số có thể tính được với dữ liệu hiện có</h3>
+        <div id="metricAvail"></div>
+      </div>
+    </div>
+
+    <div class="process-bar">
+      <span class="hint" id="processHint">Cần chạy kiểm tra dữ liệu trước khi xử lý.</span>
+      <button class="btn success" id="btnProcess" disabled onclick="advance(2)">Xử lý dữ liệu →</button>
+    </div>
+  </section>
+
+  <!-- ============ STEP 2 ============ -->
+  <section class="step-panel" id="step2">
+    <div class="head-row">
+      <h1>Bước 2 · Chọn chỉ số cần tính</h1>
+      <div class="sub">Mỗi chỉ số là một hàm trong engine.py. Chấm xanh nghĩa là dữ liệu hiện có đủ để tính; chấm đỏ là chưa đủ.</div>
+    </div>
+
+    <div class="card">
+      <div class="metric-toolbar">
+        <label class="tickall"><input type="checkbox" id="tickAll" onchange="toggleAll(this.checked)"> Chọn tất cả chỉ số sẵn sàng</label>
+        <div class="presetsel">
+          <span class="sub">Chọn theo nghiệp vụ:</span>
+          <select id="presetSel" onchange="applyPreset(this.value)">
+            <option value="">— tự chọn thủ công —</option>
+            <option value="all">Toàn bộ chỉ số sẵn sàng</option>
+            <option value="pricing">Định phí (Frequency / Severity / A-E)</option>
+            <option value="monitor">Theo dõi TLBT vận hành</option>
+          </select>
+        </div>
+      </div>
+      <div id="metricList"></div>
+    </div>
+
+    <div class="bottom-nav">
+      <button class="btn ghost" onclick="goStep(1)">← Quay lại</button>
+      <button class="btn success" id="btnAnalyze" disabled onclick="startAnalyze()">Start Analyze →</button>
+    </div>
+  </section>
+
+  <!-- ============ STEP 3 ============ -->
+  <section class="step-panel" id="step3">
+    <div class="head-row">
+      <h1>Bước 3 · Kết quả phân tích</h1>
+      <div class="sub">Ma trận heatmap tính trực tiếp trên dữ liệu đã nạp — đổi bộ lọc để engine tính lại ngay.</div>
+    </div>
+
+    <div class="mode-toggle">
+      <div class="mode-tab active" id="tabGeneral" onclick="setAnalyzeMode('general')">
+        <b>Tổng quát</b><small>Cắt chéo hai chiều bất kỳ trên toàn danh mục</small>
+      </div>
+      <div class="mode-tab" id="tabDeep" onclick="setAnalyzeMode('deep')">
+        <b>Đào sâu chi tiết</b><small>Cố định một hoặc nhiều chiều (mỗi chiều tuỳ chọn một giá trị) rồi phân tích tiếp bên trong</small>
+      </div>
+    </div>
+
+    <div class="focus-picker" id="focusPicker">
+      <div id="focusLevels"></div>
+      <button class="btn ghost sm" onclick="addFocusLevel()">+ Thêm nấc chiều cố định</button>
+    </div>
+
+    <div class="card">
+      <div class="control-strip" style="grid-template-columns:repeat(5,1fr)">
+        <div><label>Hàng</label><div class="combo-wrap"><input type="text" id="fRow" placeholder="Gõ để tìm chiều…" autocomplete="off"><div class="combo-menu" id="fRowMenu"></div></div></div>
+        <div><label>Cột</label><div class="combo-wrap"><input type="text" id="fCol" placeholder="Gõ để tìm chiều…" autocomplete="off"><div class="combo-menu" id="fColMenu"></div></div></div>
+        <div><label>Giá trị (chỉ số)</label><select id="fVal" onchange="renderHeatmapLive()"></select></div>
+        <div><label>Chế độ hiển thị</label>
+          <select id="fMode" onchange="renderHeatmapLive()">
+            <option value="current">Giá trị hiện tại</option>
+            <option value="yoy">So với cùng kỳ năm trước</option>
+            <option value="mom">So với kỳ liền trước (cùng độ dài)</option>
+          </select>
+        </div>
+        <div><label>Số nhóm hiển thị / chiều</label>
+          <select id="fTopN" onchange="renderHeatmapLive()">
+            <option value="8">Top 8</option>
+            <option value="15" selected>Top 15</option>
+            <option value="30">Top 30</option>
+            <option value="0">Tất cả</option>
+          </select>
+          <div class="sub" style="margin-top:4px;font-size:10.5px">* Top hiển thị đang xếp theo doanh thu giảm dần</div>
+        </div>
+      </div>
+      <div class="date-range">
+        <div><label class="sub">Từ ngày</label><input type="date" id="dFrom" onchange="renderHeatmapLive()"></div>
+        <div><label class="sub">Đến ngày</label><input type="date" id="dTo" onchange="renderHeatmapLive()"></div>
+      </div>
+
+      <div class="kpi-strip" id="kpiStrip"></div>
+
+      <div class="drill-toolbar">
+        <span class="sub">Bấm vào một ô trong ma trận để đào sâu, hoặc để engine tự tìm ô đang kéo chỉ số xấu đi nhiều nhất:</span>
+        <button class="btn warn" id="btnHighestImpact" onclick="openHighestImpactSegment()">⚡ Open Highest Impact Segment</button>
+      </div>
+      <div class="heat-wrap"><div class="heat" id="heatGrid"></div></div>
+      <div class="legend" id="legend"></div>
+      <div class="sub" id="coverageNote" style="margin-top:8px;font-weight:700"></div>
+      <div class="foot-note">Xếp theo doanh thu (phí thực hưởng) lớn nhất trước. Một số chiều có rất nhiều nhóm (Hãng xe: 276, Đơn vị: 103) nên mặc định chỉ hiện Top 15 — đổi "Số nhóm hiển thị" để xem nhiều hơn hoặc "Tất cả". Màu Tỷ lệ bồi thường theo ngưỡng cố định (dưới 60% xanh → trên 85% đỏ sẫm), không đổi theo dữ liệu đang hiện; các chỉ số khác và chế độ so sánh kỳ vẫn tô theo khoảng giá trị đang hiện. A/E ở bản này so Incurred thật với kỳ vọng = tần suất×chi phí bình quân toàn danh mục — chưa phải bản chuẩn hoá 3 chiều đầy đủ dùng trong báo cáo chính thức.</div>
+    </div>
+
+    <div class="bottom-nav">
+      <button class="btn ghost" onclick="goStep(2)">← Chọn lại chỉ số</button>
+      <span class="sub" id="loadedAtNote"></span>
+    </div>
+  </section>
+
+</div>
+
+<div class="dd-overlay open" id="authBlock" style="display:none">
+  <div class="dd-panel" style="max-width:480px">
+    <div class="dd-head">
+      <div><div class="dd-eyebrow">DBV Analytics Engine</div><h2>Đăng nhập để tiếp tục</h2></div>
+    </div>
+    <div class="dd-body">
+      <div class="sub" id="authBlockMsg">Dùng tài khoản Microsoft (Power BI Pro) của bạn. Bạn chỉ xem được đúng phần dữ liệu đã được phân quyền trên Fabric.</div>
+      <div class="pipe-row" style="margin-top:14px">
+        <a class="btn primary" href="/auth/login" style="text-decoration:none">Đăng nhập Microsoft</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="dd-overlay" id="ddOverlay">
+  <div class="dd-panel">
+    <div class="dd-head">
+      <div>
+        <div class="dd-eyebrow">Đào sâu · Root-cause</div>
+        <h2 id="ddTitle">—</h2>
+        <div class="sub" id="ddSub">—</div>
+      </div>
+      <button class="close" onclick="closeDrilldown()">×</button>
+    </div>
+    <div class="dd-body" id="ddBody">
+      <div class="sub">Đang tải…</div>
+    </div>
+  </div>
+</div>
+
+<div class="dd-overlay" id="decompOverlay">
+  <div class="dd-panel" style="max-width:960px">
+    <div class="dd-head">
+      <div>
+        <div class="dd-eyebrow">Decomposition Tree · bóc tách theo từng chiều tự chọn</div>
+        <h2 id="decompTitle">—</h2>
+        <div class="sub" id="decompSub">—</div>
+      </div>
+      <button class="close" onclick="closeDecomp()">×</button>
+    </div>
+    <div class="dd-body" id="decompBody">
+      <div class="sub">Đang tải…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------------- schema (khớp POLICY_REQUIRED/OPTIONAL, CLAIMS_REQUIRED/OPTIONAL trong server.py) ---------------- */
+const SCHEMA = {
+  policy:{
+    required:[
+      ["Số hợp đồng","Mã định danh hợp đồng, duy nhất"],
+      ["Ngày hiệu lực hợp đồng","Ngày bắt đầu hiệu lực, dd/mm/yyyy"],
+      ["Ngày kết thúc hiệu lực","Ngày kết thúc hiệu lực, dd/mm/yyyy"],
+      ["Phí BH phân bổ","Phí bảo hiểm đã phân bổ theo hợp đồng, số VNĐ"],
+    ],
+    optional:[
+      ["Mã đơn vị","Đơn vị kinh doanh quản lý hợp đồng"],
+      ["Kênh khai thác","Đại lý / Môi giới / Trực tiếp..."],
+      ["Hãng xe","Hãng sản xuất xe"],
+      ["Dải giá trị xe","Phân nhóm giá trị xe, vd '500tr-1ty'"],
+      ["Mục đích sử dụng","Kinh doanh vận tải / Không kinh doanh"],
+      ["Loại khách hàng","Cá nhân / Tổ chức"],
+      ["Nhóm thời gian sử dụng xe","Tuổi xe theo nhóm"],
+      ["Nhóm rủi ro địa bàn","Phân nhóm rủi ro theo địa bàn"],
+      ["Loại bút toán","Ghi 'E0'/'CAN' nếu điều chỉnh/huỷ, để trống nếu bình thường"],
+      ["Hiệu xe","Tên hiệu/model xe"],
+      ["Dòng xe","Nhóm dòng xe đã chuẩn hoá"],
+      ["Phân khúc","Phân khúc xe (hạng A/B/C...)"],
+      ["Nhiên liệu","Xăng / Dầu / Điện / Hybrid"],
+      ["Số chỗ ngồi","Số chỗ ngồi theo nhóm"],
+    ]
+  },
+  claims:{
+    required:[
+      ["Số hồ sơ","Mã định danh hồ sơ bồi thường, duy nhất"],
+      ["Số hợp đồng","Liên kết tới bảng Hợp đồng"],
+      ["Ngày xảy ra tổn thất","Ngày phát sinh tổn thất, dd/mm/yyyy"],
+      ["Số tiền tổn thất","Số tiền bồi thường ước tính/đã trả, số VNĐ"],
+      ["Trạng thái hồ sơ","'Đã giải quyết' hoặc 'Chưa giải quyết'"],
+    ],
+    optional:[
+      ["Nguyên nhân tổn thất","Mô tả nguyên nhân gốc"],
+      ["Xưởng sửa chữa","Tên xưởng thực hiện sửa chữa"],
+      ["Mô hình xưởng","Chính hãng / Ngoài hãng"],
+      ["Phân nhóm xưởng","Nhóm garage/showroom (GR/SH) — chỉ có ở phía bồi thường"],
+      ["Tên xưởng viết tắt","Tên tắt của xưởng — chỉ có ở phía bồi thường"],
+    ]
+  }
+};
+const METRICS = [
+  {id:"lr",      name:"Tỷ lệ bồi thường (Loss Ratio)", formula:"Incurred / Phí thực hưởng"},
+  {id:"freq",    name:"Frequency",                       formula:"Số vụ / Exposure"},
+  {id:"sev",     name:"Severity",                         formula:"Incurred / Số vụ"},
+  {id:"pp",      name:"Pure Premium",                     formula:"Incurred / Exposure"},
+  {id:"avgprem", name:"Average Premium",                  formula:"Phí thực hưởng / Exposure"},
+  {id:"ae",      name:"A/E (so trung bình toàn danh mục)", formula:"Incurred thật / (freq×sev toàn danh mục × Exposure)"},
+];
+const PRESETS = { all:["lr","freq","sev","pp","avgprem","ae"], pricing:["freq","sev","pp","ae"], monitor:["lr","avgprem"] };
+const DIM_LABELS = {donvi:"Đơn vị",hangxe:"Hãng xe",kenh:"Kênh khai thác",daigiatri:"Giá trị xe",
+                     mucdich:"Mục đích sử dụng xe",nhomrr:"Nhóm rủi ro địa bàn",thang:"Tháng",
+                     thoigiansd:"Nhóm thời gian sử dụng xe",hieuxe:"Hiệu xe",dongxe:"Dòng xe",
+                     phankhuc:"Phân khúc",nhienlieu:"Nhiên liệu",sochongoi:"Số chỗ ngồi",
+                     kieuthanxe:"Kiểu thân xe",phongkd:"Phòng kinh doanh",canbokt:"Cán bộ kinh doanh",
+                     doitac:"Đối tác",diemban:"Điểm bán",sochoden:"Số chỗ",trongtaikg:"Trọng tải kg (đến)",
+                     diaban:"Địa bàn",nhomgara:"Phân nhóm SH/GR sửa chữa",garatt:"Gara sửa chữa",
+                     nhommucdo:"Nhóm mức độ tổn thất",dongco:"Động cơ",
+                     loaixe_f0:"Nhóm xe cấp 1 (F0)",loaixe_f1:"Nhóm xe cấp 2 (F1)",
+                     loaixe_f2:"Nhóm xe cấp 3 (F2)",ftnds:"Phân loại TNDS (FTNDS)"};
+// Tra ngược nhãn tiếng Việt -> id chiều, dùng cho các ô gõ-tìm (input+datalist) — người dùng gõ/thấy
+// nhãn dễ đọc, nhưng API vẫn cần đúng id kỹ thuật.
+const DIM_LABEL_TO_ID = {};
+Object.entries(DIM_LABELS).forEach(([id,label])=>{ DIM_LABEL_TO_ID[label] = id; });
+function dimIdFromLabel(label){ return DIM_LABEL_TO_ID[(label||"").trim()] || ""; }
+const FMT = {
+  lr:v=>(v*100).toFixed(1)+"%", freq:v=>v.toFixed(3), sev:v=>(v/1e6).toFixed(2)+"tr",
+  pp:v=>(v/1e6).toFixed(2)+"tr", avgprem:v=>(v/1e6).toFixed(2)+"tr", ae:v=>v.toFixed(2),
+};
+
+const state = { source:"csv", files:{policy:null, claims:null}, validated:false,
+  readiness:{}, reasons:{}, dimsAvailable:[], dateRanges:{}, ticked:new Set(), maxStep:1, analyzeMode:"general",
+  standalone:false };
+
+/* ---------------- schema dictionary + template ---------------- */
+function renderDict(tableId, key){
+  const s = SCHEMA[key];
+  const rows = s.required.map(r=>`<tr><td class="req">${r[0]} <span style="font-weight:600">· bắt buộc</span></td><td class="req">${r[1]}</td></tr>`)
+    .concat(s.optional.map(r=>`<tr><td class="opt">${r[0]}</td><td class="opt">${r[1]}</td></tr>`)).join("");
+  document.getElementById(tableId).innerHTML = `<thead><tr><th>Tên cột</th><th>Mô tả</th></tr></thead><tbody>${rows}</tbody>`;
+}
+renderDict("dictPolicy","policy"); renderDict("dictClaims","claims");
+document.getElementById("polCount").textContent = `${SCHEMA.policy.required.length} cột bắt buộc · ${SCHEMA.policy.optional.length} cột tuỳ chọn`;
+document.getElementById("clmCount").textContent = `${SCHEMA.claims.required.length} cột bắt buộc · ${SCHEMA.claims.optional.length} cột tuỳ chọn`;
+
+const TPL_EXAMPLES = {
+  policy:[
+    ["HD0001234","01/01/2026","31/12/2026","8500000","HN01","Đại lý","Toyota","500tr-1ty","Không kinh doanh vận tải","Cá nhân","1-3 năm","Rủi ro trung bình","","Vios","Sedan","Hạng C","Xăng","5 chỗ"],
+    ["HD0009981","15/02/2026","14/02/2027","11200000","HCM03","Trực tiếp","VinFast","300-500tr","KD vận tải hành khách","Tổ chức","<1 năm","Rủi ro cao","","VF5","SUV","Hạng B","Điện","5 chỗ"],
+  ],
+  claims:[
+    ["HS00098765","HD0001234","15/03/2026","12500000","Đã giải quyết","Va chạm giao thông","Gara Thành Công","Ngoài hãng","SH","Gara Thành Công"],
+    ["HS00098890","HD0009981","02/04/2026","54000000","Chưa giải quyết","Cháy nổ","Toyota Mỹ Đình","Chính hãng","GR","Toyota MD"],
+  ]
+};
+function downloadTemplate(key){
+  const s = SCHEMA[key];
+  const header = s.required.map(r=>r[0]).concat(s.optional.map(r=>r[0]));
+  const lines = [header.join(",")].concat(TPL_EXAMPLES[key].map(r=>r.join(",")));
+  const csv = "﻿" + lines.join("\r\n");
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = `DBV_template_${key}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+/* ---------------- phiên: cookie do server đặt, đăng nhập Microsoft ---------------- */
+let SERVER = null; // bản ghi /api/status gần nhất
+
+/* ---------------- network helpers ---------------- */
+async function postJSON(url, body, signal){
+  const res = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(body||{}), signal});
+  if(res.status === 401){ showLoginGate(); }
+  return await res.json();
+}
+function chk(level, title, detail){
+  return `<div class="check-item"><span class="dot ${level}"></span><div><b>${title}</b><div class="d">${detail}</div></div></div>`;
+}
+function showLoginGate(msg){
+  if(msg) document.getElementById("authBlockMsg").textContent = msg;
+  document.getElementById("authBlock").style.display = "flex";
+}
+function renderAccount(s){
+  const chip = document.getElementById("chipAccount");
+  if(s.standalone || !s.fabricAvailable){ chip.style.display = "none"; return; }
+  chip.style.display = "";
+  if(s.account){
+    chip.classList.add("on");
+    chip.innerHTML = `${escHtml(s.account)}<a href="/auth/logout" title="Đăng xuất">Đăng xuất</a>`;
+  } else {
+    chip.classList.remove("on");
+    chip.innerHTML = `Chưa đăng nhập<a href="/auth/login">Đăng nhập Microsoft</a>`;
+  }
+}
+function escHtml(v){ return String(v).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+/* ---------------- server status on load ---------------- */
+async function checkStatus(){
+  const res = await fetch("/api/status");
+  const s = await res.json();
+  SERVER = s;
+  state.standalone = !!s.standalone;
+  document.getElementById("chipServer").textContent = "Server: đã kết nối";
+  document.getElementById("chipServer").classList.add("on");
+  renderAccount(s);
+
+  const authErr = new URLSearchParams(location.search).get("auth_error");
+  if(authErr){
+    history.replaceState(null, "", location.pathname);
+    alert("Đăng nhập Microsoft không thành công: " + authErr);
+  }
+
+  if(s.standalone){
+    document.getElementById("srcCardSync").style.display = "none";
+    if(!s.fabricAvailable){
+      document.getElementById("srcCardFabric").style.display = "none";
+      document.getElementById("srcCardFabricLive").style.display = "none";
+    }
+    document.getElementById("chipSource").textContent = "Demo standalone — dữ liệu nhúng sẵn";
+    document.getElementById("chipSource").classList.add("on");
+    if(s.hasData && s.lastValidate){
+      applyValidateResult(s.lastValidate);
+      document.getElementById("loadedAtNote").textContent = "Dữ liệu nhúng sẵn trong file demo · nạp lúc: " + s.loadedAt;
+      advance(2);
+    }
+    return s;
+  }
+
+  if(s.loginRequired && !s.loggedIn){ showLoginGate(); return s; }
+  document.getElementById("authBlock").style.display = "none";
+
+  if(s.hosted) document.getElementById("srcCardSync").style.display = "none";
+  if(s.pipelineDataExists){
+    document.getElementById("cacheNote").textContent = "Đã tìm thấy dữ liệu cache — bấm 'Xem ngay' để dùng.";
+  } else {
+    document.getElementById("btnLoadCache").disabled = true;
+    document.getElementById("cacheNote").textContent = "Chưa có dữ liệu cache trên máy chủ — dùng Live Fabric, hoặc kéo dữ liệu về lần đầu.";
+  }
+  if(!s.fabricAvailable){
+    document.getElementById("srcCardFabric").style.display = "none";
+    document.getElementById("srcCardFabricLive").style.display = "none";
+    if(state.source === "fabric_live") selectSource("csv");
+  }
+  if(s.hasData && s.lastValidate) applyValidateResult(s.lastValidate);
+  renderSyncPanel(s);
+  if(state.source === "fabric_live") refreshFabricLiveStatus();
+  return s;
+}
+window.addEventListener("load", async ()=>{
+  try{ await checkStatus(); }
+  catch(e){
+    document.getElementById("chipServer").textContent = "Server: mất kết nối";
+    document.getElementById("chipServer").classList.add("warn");
+    document.body.insertAdjacentHTML("afterbegin",
+      `<div class="server-banner">Không kết nối được với backend. Hãy chạy <code>server.py</code> (hoặc <code>run.bat</code>) trong thư mục app/, rồi mở lại trang.</div>`);
+  }
+});
+
+/* ---------------- source selection ---------------- */
+function selectSource(src){
+  state.source = src;
+  document.getElementById("srcCardCache").classList.toggle("selected", src==="cache");
+  document.getElementById("srcCardCsv").classList.toggle("selected", src==="csv");
+  document.getElementById("srcCardSync").classList.toggle("selected", src==="sync");
+  document.getElementById("srcCardFabric").classList.toggle("selected", src==="fabric");
+  document.getElementById("srcCardSql").classList.toggle("selected", src==="sql");
+  document.getElementById("srcCardFabricLive").classList.toggle("selected", src==="fabric_live");
+  document.getElementById("panelCache").classList.toggle("active", src==="cache");
+  document.getElementById("panelCsv").classList.toggle("active", src==="csv");
+  document.getElementById("panelSync").classList.toggle("active", src==="sync");
+  document.getElementById("panelFabric").classList.toggle("active", src==="fabric");
+  document.getElementById("panelSql").classList.toggle("active", src==="sql");
+  document.getElementById("panelFabricLive").classList.toggle("active", src==="fabric_live");
+  const labels = {cache:"Dữ liệu cache", csv:"CSV upload", sync:"Đồng bộ từ máy chia sẻ", fabric:"Kéo dữ liệu Fabric", sql:"SQL Server DWH", fabric_live:"Fabric (Live)"};
+  document.getElementById("chipSource").textContent = "Nguồn: " + labels[src];
+  document.getElementById("chipSource").classList.add("on");
+  if(src==="fabric") refreshFabricStatus();
+  if(src==="fabric_live") refreshFabricLiveStatus();
+}
+selectSource("fabric_live");
+
+/* ---------------- Microsoft Fabric ---------------- */
+async function fetchFabricStatus(){
+  try{ return await postJSON("/api/fabric_status", {}); }
+  catch(e){ return {error:"Không gọi được backend."}; }
+}
+async function refreshFabricStatus(){
+  const note = document.getElementById("fabricNote");
+  const pullBtn = document.getElementById("btnFabricPull");
+  note.textContent = "Đang kiểm tra…";
+  const s = await fetchFabricStatus();
+  if(s.error){ note.textContent = s.error; pullBtn.disabled = true; return; }
+  if(!s.available){ note.textContent = "Máy chủ chưa cài đặt kết nối Fabric (thiếu fabric_extract.py hoặc msal)."; pullBtn.disabled = true; return; }
+  if(s.configError){ note.textContent = "Lỗi cấu hình: " + s.configError; pullBtn.disabled = true; return; }
+  if(s.account){
+    note.innerHTML = `Đã đăng nhập: <b>${escHtml(s.account)}</b>`;
+    pullBtn.disabled = false;
+  } else {
+    note.textContent = "Chưa đăng nhập. Mở thẻ \"Kết nối tính toán trực tiếp với Microsoft Fabric\" để đăng nhập trước.";
+    pullBtn.disabled = true;
+  }
+}
+/* ---------------- Fabric Live Connection ---------------- */
+async function refreshFabricLiveStatus(){
+  const note = document.getElementById("fabricLiveNote");
+  const btn = document.getElementById("btnStartLive");
+  const msBtn = document.getElementById("btnMsLogin");
+  const codeBtn = document.getElementById("btnFabricLogin");
+  const outBtn = document.getElementById("btnFabricLogout");
+  note.textContent = "Đang kiểm tra…";
+  msBtn.style.display = "none"; codeBtn.style.display = "none"; outBtn.style.display = "none";
+  const s = await fetchFabricStatus();
+  if(s.error || !s.available){
+    note.textContent = s.error || "Máy chủ chưa cài đặt kết nối Fabric.";
+    btn.disabled = true; return;
+  }
+  if(s.configError){ note.textContent = "Lỗi cấu hình: " + s.configError; btn.disabled = true; return; }
+  if(s.account){
+    note.innerHTML = `Đã đăng nhập: <b>${escHtml(s.account)}</b>. Chọn khoảng ngày rồi bấm Bắt đầu.`;
+    btn.disabled = false;
+    outBtn.style.display = "";
+  } else {
+    note.textContent = "Chưa đăng nhập Microsoft.";
+    btn.disabled = true;
+    msBtn.style.display = "";
+    if(s.deviceFlowAllowed) codeBtn.style.display = "";
+  }
+  if(SERVER) { SERVER.account = s.account || null; renderAccount(SERVER); }
+}
+function startLiveTest(){
+  const from = document.getElementById("liveDFrom").value;
+  const to = document.getElementById("liveDTo").value;
+  if(!from || !to){ alert("Chọn khoảng ngày (Từ ngày / Đến ngày) trước."); return; }
+  state.dimsAvailable = Object.keys(DIM_LABELS);
+  state.readiness = {lr:true, freq:true, sev:true, pp:true, avgprem:true, ae:true};
+  state.ticked = new Set(["lr"]);
+  document.getElementById("fVal").innerHTML = METRICS.map(m=>`<option value="${m.id}">${m.name}</option>`).join("");
+  state.focusLevels = [{dim:"", val:""}];
+  renderFocusLevels();
+  populateRowColOptions();
+  // "Đơn vị" KHÔNG dùng mặc định được ở Live — một hợp đồng có thể mang nhiều Ma_DV khác nhau giữa các
+  // dòng chi tiết kế toán, group theo Đơn vị qua DAX sẽ đếm trùng Exposure (xem LIVE_DIM_MAP ở server.py).
+  if(state.dimsAvailable.includes("kenh")) document.getElementById("fRow").value = DIM_LABELS["kenh"];
+  if(state.dimsAvailable.includes("daigiatri")) document.getElementById("fCol").value = DIM_LABELS["daigiatri"];
+  document.getElementById("dFrom").value = from;
+  document.getElementById("dTo").value = to;
+  document.getElementById("loadedAtNote").textContent = "Live Connection — chưa kéo lần nào, sẽ kéo ngay khi hiện heatmap.";
+  advance(3);
+  renderHeatmapLive();
+}
+async function fabricLogout(){
+  if(!confirm("Đăng xuất khỏi tài khoản Microsoft trong phiên này?")) return;
+  try{ await postJSON("/api/fabric_logout", {}); }catch(e){}
+  location.href = "/auth/logout";
+}
+async function fabricLoginStart(){
+  const btn = document.getElementById("btnFabricLogin"), spin = document.getElementById("spinFabricLogin");
+  btn.disabled = true; spin.classList.add("on");
+  try{
+    const res = await postJSON("/api/fabric_login_start", {});
+    if(res.error){
+      document.getElementById("fabricLiveNote").textContent = res.error;
+    } else {
+      document.getElementById("fabricVerifUri").textContent = res.verificationUri || "https://login.microsoft.com/device";
+      document.getElementById("fabricUserCode").textContent = res.userCode;
+      document.getElementById("fabricLoginBox").style.display = "block";
+      document.getElementById("fabricWaitStatus").textContent = "";
+    }
+  }catch(e){ document.getElementById("fabricLiveNote").textContent = "Lỗi kết nối backend."; }
+  btn.disabled = false; spin.classList.remove("on");
+}
+async function fabricLoginWait(){
+  const btn = document.getElementById("btnFabricWait"), spin = document.getElementById("spinFabricWait");
+  const status = document.getElementById("fabricWaitStatus");
+  btn.disabled = true; spin.classList.add("on"); status.textContent = "Đang chờ xác nhận trên trình duyệt, đừng đóng trang này…";
+  try{
+    const res = await postJSON("/api/fabric_login_wait", {});
+    if(res.error){
+      status.textContent = res.error;
+    } else {
+      status.textContent = "";
+      document.getElementById("fabricLoginBox").style.display = "none";
+      await checkStatus();
+      await refreshFabricLiveStatus();
+    }
+  }catch(e){ status.textContent = "Lỗi kết nối backend."; }
+  btn.disabled = false; spin.classList.remove("on");
+}
+let _fabricPollTimer = null;
+function fmtElapsed(sec){
+  sec = Math.max(0, Math.round(sec));
+  const m = Math.floor(sec/60), s = sec%60;
+  return m>0 ? `${m} phút ${s} giây` : `${s} giây`;
+}
+function startFabricPolling(){
+  const t0 = Date.now();
+  async function tick(){
+    try{
+      const p = await postJSON("/api/fabric_progress", {});
+      if(p.error) return;
+      document.getElementById("fabricProgressPhase").textContent = p.phase || "Đang xử lý…";
+      document.getElementById("fabricProgressTable").textContent = p.table ? `Bảng: ${p.table}` : "";
+      document.getElementById("fabricProgressRows").textContent = (p.rowsSoFar||0).toLocaleString("vi-VN") + " dòng đã kéo";
+      const elapsedSec = p.startedAt ? (Date.now()/1000 - p.startedAt) : (Date.now()-t0)/1000;
+      document.getElementById("fabricProgressElapsed").textContent = fmtElapsed(elapsedSec);
+      const rate = elapsedSec>0.5 ? Math.round((p.rowsSoFar||0)/elapsedSec) : 0;
+      document.getElementById("fabricProgressSpeed").textContent = rate ? rate.toLocaleString("vi-VN") + " dòng/giây" : "";
+    }catch(e){}
+  }
+  tick();
+  _fabricPollTimer = setInterval(tick, 900);
+}
+function stopFabricPolling(){
+  if(_fabricPollTimer){ clearInterval(_fabricPollTimer); _fabricPollTimer = null; }
+}
+function toggleFabricLog(){
+  const el = document.getElementById("fabricLog");
+  el.style.display = el.style.display==="none" ? "block" : "none";
+}
+async function fabricPull(){
+  if(!confirm("Sẽ kéo dữ liệu mới nhất từ Microsoft Fabric — có thể mất vài phút vì bảng nguồn tới hàng triệu dòng. Tiếp tục?")) return;
+  const btn = document.getElementById("btnFabricPull"), spin = document.getElementById("spinFabricPull");
+  btn.disabled = true; spin.classList.add("on");
+  const box = document.getElementById("fabricProgress");
+  box.style.display = "block";
+  box.classList.remove("done", "error");
+  document.getElementById("fabricProgressPhase").textContent = "Đang bắt đầu…";
+  document.getElementById("fabricProgressTable").textContent = "";
+  document.getElementById("fabricProgressRows").textContent = "";
+  document.getElementById("fabricProgressSpeed").textContent = "";
+  document.getElementById("fabricProgressElapsed").textContent = "";
+  document.getElementById("fabricLog").style.display = "none";
+  startFabricPolling();
+  try{
+    const res = await postJSON("/api/fabric_pull", {});
+    stopFabricPolling();
+    document.getElementById("fabricLog").textContent = res.log || res.error || "";
+    if(res.error){
+      box.classList.add("error");
+      document.getElementById("fabricProgressPhase").textContent = "Lỗi: " + res.error;
+      btn.disabled = false; spin.classList.remove("on");
+      return;
+    }
+    box.classList.add("done");
+    document.getElementById("fabricProgressPhase").textContent = "Hoàn tất — dữ liệu mới đã sẵn sàng.";
+    applyValidateResult(res);
+  }catch(e){
+    stopFabricPolling();
+    box.classList.add("error");
+    document.getElementById("fabricProgressPhase").textContent = "Lỗi kết nối backend: " + e;
+  }
+  btn.disabled = false; spin.classList.remove("on");
+}
+
+/* ---------------- sync (app standalone kéo dữ liệu từ máy chia sẻ) ---------------- */
+function renderSyncPanel(s){
+  const note = document.getElementById("syncNote");
+  if(!s.syncConfigured){
+    note.innerHTML = `Chưa có <code>sync_config.json</code> — chưa cấu hình được máy nguồn để đồng bộ.`;
+    document.getElementById("btnSyncPull").disabled = true;
+  } else {
+    document.getElementById("btnSyncPull").disabled = false;
+    note.textContent = s.lastSyncedAt
+      ? `Đã cấu hình nguồn đồng bộ. Đồng bộ lần cuối lúc: ${s.lastSyncedAt}.`
+      : `Đã cấu hình nguồn đồng bộ. Chưa đồng bộ lần nào trên máy này.`;
+  }
+}
+async function runSyncPull(){
+  const btn = document.getElementById("btnSyncPull"), spin = document.getElementById("spinSync");
+  const statusText = document.getElementById("syncStatusText");
+  btn.disabled = true; spin.classList.add("on"); statusText.textContent = "Đang kết nối máy nguồn…";
+  try{
+    const res = await postJSON("/api/sync_pull", {});
+    if(res.error){
+      statusText.textContent = res.error;
+    } else {
+      statusText.textContent = `Đồng bộ xong lúc ${res.syncedAt}.`;
+      document.getElementById("syncNote").textContent = `Đồng bộ lần cuối lúc: ${res.syncedAt}.`;
+      applyValidateResult(res);
+    }
+  }catch(e){ statusText.textContent = "Lỗi kết nối backend."; }
+  btn.disabled = false; spin.classList.remove("on");
+}
+
+/* ---------------- CSV dropzones ---------------- */
+function setupDropzone(key, inputId, dzId){
+  const dz = document.getElementById(dzId);
+  const input = document.getElementById(inputId);
+  dz.addEventListener("click", ()=>{ if(!dz.classList.contains("filled")) input.click(); });
+  dz.addEventListener("dragover", e=>{e.preventDefault(); dz.classList.add("drag");});
+  dz.addEventListener("dragleave", ()=> dz.classList.remove("drag"));
+  dz.addEventListener("drop", e=>{
+    e.preventDefault(); dz.classList.remove("drag");
+    if(e.dataTransfer.files.length) handleFile(key, e.dataTransfer.files[0]);
+  });
+  input.addEventListener("change", e=>{ if(e.target.files.length) handleFile(key, e.target.files[0]); });
+}
+setupDropzone("policy","filePolicy","dzPolicy");
+setupDropzone("claims","fileClaims","dzClaims");
+function handleFile(key, file){
+  state.files[key] = file;
+  document.getElementById(key==="policy"?"dzPolicy":"dzClaims").classList.add("filled");
+  document.getElementById(key==="policy"?"polName":"clmName").textContent = file.name;
+  document.getElementById(key==="policy"?"polMeta":"clmMeta").textContent = (file.size/1024).toFixed(0)+" KB · chưa kiểm tra";
+  state.validated = false;
+  updateValidateHintCsv();
+}
+function clearFile(key, ev){
+  ev.stopPropagation();
+  state.files[key] = null;
+  document.getElementById(key==="policy"?"dzPolicy":"dzClaims").classList.remove("filled");
+  document.getElementById(key==="policy"?"filePolicy":"fileClaims").value = "";
+  state.validated = false;
+  updateValidateHintCsv();
+}
+function updateValidateHintCsv(){
+  const ready = !!(state.files.policy && state.files.claims);
+  document.getElementById("validateHintCsv").textContent = ready ? "Sẵn sàng kiểm tra." : "Cần tải lên cả hai file CSV trước.";
+}
+
+/* ---------------- validate: CSV ---------------- */
+async function runValidateCsv(){
+  if(!state.files.policy || !state.files.claims){ alert("Cần cả hai file CSV."); return; }
+  const btn = document.getElementById("btnValidateCsv"), spin = document.getElementById("spinCsv");
+  btn.disabled = true; spin.classList.add("on");
+  try{
+    const [pTxt, cTxt] = await Promise.all([state.files.policy.text(), state.files.claims.text()]);
+    const res = await postJSON("/api/validate", {source:"csv", policyCsv:pTxt, claimsCsv:cTxt});
+    document.getElementById("polMeta").textContent = res.policyCheck ? `${(state.files.policy.size/1024).toFixed(0)} KB · ${res.policyCheck.rows.toLocaleString("vi-VN")} dòng` : document.getElementById("polMeta").textContent;
+    document.getElementById("clmMeta").textContent = res.claimsCheck ? `${(state.files.claims.size/1024).toFixed(0)} KB · ${res.claimsCheck.rows.toLocaleString("vi-VN")} dòng` : document.getElementById("clmMeta").textContent;
+    applyValidateResult(res);
+  }catch(e){ applyValidateResult({error:"Không gọi được backend: "+e}); }
+  btn.disabled = false; spin.classList.remove("on");
+}
+
+/* ---------------- validate: dữ liệu đã làm sạch có sẵn (cache) ---------------- */
+async function loadCleanedData(btn, spin){
+  if(btn) btn.disabled = true; if(spin) spin.classList.add("on");
+  try{
+    const res = await postJSON("/api/validate", {source:"pipeline"});
+    applyValidateResult(res);
+  }catch(e){ applyValidateResult({error:"Không gọi được backend: "+e}); }
+  if(btn) btn.disabled = false; if(spin) spin.classList.remove("on");
+}
+async function loadCacheData(){
+  await loadCleanedData(document.getElementById("btnLoadCache"), document.getElementById("spinCache"));
+}
+/* ---------------- SQL Server DWH (demo, chưa kết nối thật) ---------------- */
+async function sqlServerConnect(){
+  const statusText = document.getElementById("sqlStatusText");
+  statusText.textContent = "Đang kết nối…";
+  try{
+    const res = await postJSON("/api/sqlserver_connect", {
+      host: document.getElementById("sqlHost").value, port: document.getElementById("sqlPort").value,
+      db: document.getElementById("sqlDb").value, auth: document.getElementById("sqlAuth").value,
+      user: document.getElementById("sqlUser").value,
+    });
+    statusText.textContent = res.error || res.message || "";
+  }catch(e){ statusText.textContent = "Lỗi kết nối backend."; }
+}
+/* ---------------- validate result -> UI ---------------- */
+function applyValidateResult(res){
+  if(res.error){
+    document.getElementById("checkGrid").innerHTML = chk("r","Lỗi khi xử lý dữ liệu", res.error);
+    document.getElementById("metricAvail").innerHTML = "";
+    document.getElementById("statusBox").classList.add("show");
+    document.getElementById("chipValid").textContent = "Kiểm tra: lỗi";
+    return;
+  }
+  state.validated = true;
+  state.readiness = res.readiness;
+  state.reasons = deriveReasons(res);
+  state.dimsAvailable = res.dimsAvailable || [];
+  state.dateRanges = res.dateRanges || {};
+  renderChecks(res);
+  renderMetricAvail();
+  document.getElementById("statusBox").classList.add("show");
+  const anyReady = Object.values(res.readiness).some(Boolean);
+  document.getElementById("btnProcess").disabled = !anyReady;
+  document.getElementById("processHint").textContent = anyReady ? "Sẵn sàng chuyển sang chọn chỉ số." : "Chưa có chỉ số nào tính được — kiểm tra lại dữ liệu.";
+  document.getElementById("chipValid").textContent = "Kiểm tra: hoàn tất";
+  document.getElementById("chipValid").classList.add("on");
+}
+function deriveReasons(res){
+  const r = {};
+  if(!res.readiness.lr) r.lr = !res.policyOk ? "Thiếu cột bắt buộc ở bảng Hợp đồng." : "Thiếu cột bắt buộc ở bảng Bồi thường.";
+  if(!res.readiness.freq) r.freq = r.lr || "Cần đủ Hợp đồng & Bồi thường.";
+  if(!res.readiness.sev) r.sev = "Thiếu cột bắt buộc ở bảng Bồi thường.";
+  if(!res.readiness.pp) r.pp = r.lr || "Cần đủ Hợp đồng & Bồi thường.";
+  if(!res.readiness.avgprem) r.avgprem = "Thiếu cột bắt buộc ở bảng Hợp đồng.";
+  if(!res.readiness.ae) r.ae = r.lr || "Cần đủ Hợp đồng & Bồi thường.";
+  return r;
+}
+function renderChecks(res){
+  const items = [];
+  if(res.policyCheck){
+    const c = res.policyCheck;
+    items.push(chk(c.missing_req.length===0?"g":"r","Bảng Hợp đồng — cột bắt buộc",
+      c.missing_req.length===0?`Đủ cột bắt buộc · ${c.rows.toLocaleString("vi-VN")} dòng.`:`Thiếu cột: ${c.missing_req.join(", ")}.`));
+    items.push(chk(c.missing_opt.length===0?"g":"a","Bảng Hợp đồng — cột tuỳ chọn",
+      c.missing_opt.length===0?"Đủ toàn bộ chiều phân tích tuỳ chọn.":`Thiếu: ${c.missing_opt.join(", ")}.`));
+    if(c.rows) items.push(chk(c.worst_pct===0?"g":(c.worst_pct<0.05?"a":"r"),"Bảng Hợp đồng — độ đầy dữ liệu",
+      c.worst_pct===0?"Không có ô trống ở cột bắt buộc.":`Cột "${c.worst_col}" trống ${(c.worst_pct*100).toFixed(1)}% số dòng.`));
+  }
+  if(res.claimsCheck){
+    const c = res.claimsCheck;
+    items.push(chk(c.missing_req.length===0?"g":"r","Bảng Bồi thường — cột bắt buộc",
+      c.missing_req.length===0?`Đủ cột bắt buộc · ${c.rows.toLocaleString("vi-VN")} dòng.`:`Thiếu cột: ${c.missing_req.join(", ")}.`));
+    items.push(chk(c.missing_opt.length===0?"g":"a","Bảng Bồi thường — cột tuỳ chọn",
+      c.missing_opt.length===0?"Đủ toàn bộ chiều phân tích tuỳ chọn.":`Thiếu: ${c.missing_opt.join(", ")}.`));
+  }
+  if(res.dateRanges && res.dateRanges.policy) items.push(chk("g","Khoảng thời gian — Hợp đồng", `${res.dateRanges.policy[0]} → ${res.dateRanges.policy[1]}`));
+  if(res.dateRanges && res.dateRanges.claims) items.push(chk("g","Khoảng thời gian — Bồi thường", `${res.dateRanges.claims[0]} → ${res.dateRanges.claims[1]}`));
+  document.getElementById("checkGrid").innerHTML = items.join("");
+}
+function renderMetricAvail(){
+  document.getElementById("metricAvail").innerHTML = METRICS.map(m=>{
+    const ok = state.readiness[m.id];
+    return `<div class="metric-avail-row"><span class="dot ${ok?'g':'r'}"></span><b>${m.name}</b>
+      <span class="reason">${ok?'Sẵn sàng':(state.reasons[m.id]||'Chưa đủ dữ liệu')}</span></div>`;
+  }).join("");
+}
+
+/* ---------------- step navigation ---------------- */
+function renderStep(n){
+  [1,2,3].forEach(i=>{
+    document.getElementById("step"+i).classList.toggle("active", i===n);
+    const pill = document.getElementById("pill"+i);
+    pill.classList.toggle("active", i===n);
+    pill.classList.toggle("done", i<n);
+    pill.classList.toggle("reachable", i<=state.maxStep);
+  });
+  if(n===2) renderMetrics();
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+function goStep(n){ if(n<=state.maxStep) renderStep(n); }
+function advance(n){ state.maxStep = Math.max(state.maxStep, n); renderStep(n); }
+
+/* ---------------- step 2: metrics ---------------- */
+function renderMetrics(){
+  document.getElementById("metricList").innerHTML = METRICS.map(m=>{
+    const ok = state.readiness[m.id];
+    const checked = state.ticked.has(m.id) ? "checked" : "";
+    const dis = ok ? "" : "disabled";
+    return `<div class="metric-row ${ok?'':'disabled'}">
+      <input type="checkbox" ${checked} ${dis} onchange="toggleMetric('${m.id}',this.checked)">
+      <span class="dot ${ok?'g':'r'}"></span><b>${m.name}</b>
+      <span class="formula">${m.formula}</span>
+      <span class="reason">${ok?'':(state.reasons[m.id]||'Chưa đủ dữ liệu')}</span>
+    </div>`;
+  }).join("");
+  syncTickAll(); updateAnalyzeBtn(); updateMetricsChip();
+}
+function toggleMetric(id, on){ if(on) state.ticked.add(id); else state.ticked.delete(id); syncTickAll(); updateAnalyzeBtn(); updateMetricsChip(); }
+function toggleAll(on){
+  METRICS.forEach(m=>{ if(state.readiness[m.id]){ if(on) state.ticked.add(m.id); else state.ticked.delete(m.id); } });
+  renderMetrics();
+}
+function syncTickAll(){
+  const readyIds = METRICS.filter(m=>state.readiness[m.id]).map(m=>m.id);
+  const tickedReady = readyIds.filter(id=>state.ticked.has(id));
+  const box = document.getElementById("tickAll");
+  box.checked = readyIds.length>0 && tickedReady.length===readyIds.length;
+  box.indeterminate = tickedReady.length>0 && tickedReady.length<readyIds.length;
+}
+function applyPreset(key){
+  if(!key) return;
+  state.ticked = new Set(PRESETS[key].filter(id=>state.readiness[id]));
+  renderMetrics();
+}
+function updateAnalyzeBtn(){ document.getElementById("btnAnalyze").disabled = state.ticked.size===0; }
+function updateMetricsChip(){
+  const chip = document.getElementById("chipMetrics");
+  chip.textContent = "Chỉ số: " + state.ticked.size + " đã chọn";
+  chip.classList.toggle("on", state.ticked.size>0);
+}
+
+/* ---------------- step 3: analyze ---------------- */
+function fmtDate(d){ return d.toISOString().slice(0,10); }
+function defaultDateRange(dataRange){
+  // Mặc định năm hiện tại (01/01 -> hôm nay), kẹp trong khoảng dữ liệu thật có nếu hẹp hơn.
+  const today = new Date();
+  let from = new Date(today.getFullYear(), 0, 1), to = today;
+  if(dataRange && dataRange.length===2){
+    const dMin = new Date(dataRange[0]), dMax = new Date(dataRange[1]);
+    if(from < dMin) from = dMin;
+    if(to > dMax) to = dMax;
+    if(from > to) { from = dMin; to = dMax; } // du lieu ket thuc truoc dau nam nay -> lay het khoang co
+  }
+  return [fmtDate(from), fmtDate(to)];
+}
+function startAnalyze(){
+  document.getElementById("fVal").innerHTML = Array.from(state.ticked).map(id=>{
+    const m = METRICS.find(x=>x.id===id); return `<option value="${id}">${m.name}</option>`;
+  }).join("");
+  state.focusLevels = [{dim:"", val:""}];
+  renderFocusLevels();
+  populateRowColOptions();
+  if(state.dimsAvailable.includes("donvi")) document.getElementById("fRow").value = DIM_LABELS["donvi"];
+  if(state.dimsAvailable.includes("daigiatri")) document.getElementById("fCol").value = DIM_LABELS["daigiatri"];
+  const range = state.dateRanges.policy || state.dateRanges.claims || [];
+  const [from, to] = defaultDateRange(range);
+  document.getElementById("dFrom").value = from;
+  document.getElementById("dTo").value = to;
+  document.getElementById("loadedAtNote").textContent = "Dữ liệu nạp lúc: " + (state.loadedAt || "");
+  advance(3);
+  renderHeatmapLive();
+}
+
+/* ---------------- Tổng quát / Đào sâu chi tiết ---------------- */
+function setAnalyzeMode(m){
+  state.analyzeMode = m;
+  document.getElementById("tabGeneral").classList.toggle("active", m==="general");
+  document.getElementById("tabDeep").classList.toggle("active", m==="deep");
+  document.getElementById("focusPicker").classList.toggle("active", m==="deep");
+  populateRowColOptions();
+  renderHeatmapLive();
+}
+
+/* ---------------- nhiều nấc "chiều cố định" ở Đào sâu chi tiết — thêm/xoá được ---------------- */
+function usedFocusDims(){
+  return new Set(state.focusLevels.map(l=>l.dim).filter(Boolean));
+}
+function renderFocusLevels(){
+  const multi = state.focusLevels.length > 1;
+  document.getElementById("focusLevels").innerHTML = state.focusLevels.map((lvl,i)=>{
+    return `<div class="focus-picker-row">
+      <div><label class="sub">Chiều muốn cố định${multi?` (nấc ${i+1})`:""}</label>
+        <div class="combo-wrap"><input type="text" id="focusDim${i}" value="${escAttr(DIM_LABELS[lvl.dim]||"")}"
+          placeholder="Gõ để tìm chiều…" autocomplete="off"><div class="combo-menu" id="focusDim${i}Menu"></div></div>
+      </div>
+      <div><label class="sub">Giá trị (gõ để tìm — để trống nghĩa là giữ cả chiều)</label>
+        <div class="combo-wrap"><input type="text" id="focusVal${i}" value="${escAttr(lvl.val)}"
+          placeholder="Gõ để tìm giá trị…" autocomplete="off"><div class="combo-menu" id="focusVal${i}Menu"></div></div>
+      </div>
+      <button class="btn ghost sm" onclick="removeFocusLevel(${i})">${multi?"Xoá nấc":"Xoá"}</button>
+    </div>`;
+  }).join("");
+  state.focusLevels.forEach((lvl,i)=>{
+    attachCombo(`focusDim${i}`, ()=>{
+      const used = usedFocusDims();
+      return state.dimsAvailable.filter(id => id===state.focusLevels[i].dim || !used.has(id)).map(id=>DIM_LABELS[id]||id);
+    }, (v)=> onFocusLevelDimChange(i, v));
+    attachCombo(`focusVal${i}`, ()=> state.focusLevels[i].valOptions || [], (v)=> onFocusLevelValChange(i, v));
+    if(lvl.dim) loadFocusValueOptions(i);
+  });
+}
+function addFocusLevel(){
+  state.focusLevels.push({dim:"", val:""});
+  renderFocusLevels();
+}
+function removeFocusLevel(i){
+  if(state.focusLevels.length<=1) state.focusLevels[i] = {dim:"", val:""};
+  else state.focusLevels.splice(i,1);
+  renderFocusLevels();
+  populateRowColOptions();
+  renderHeatmapLive();
+}
+async function onFocusLevelDimChange(i, label){
+  state.focusLevels[i].dim = dimIdFromLabel(label);
+  state.focusLevels[i].val = "";
+  renderFocusLevels();
+  populateRowColOptions();
+  await loadFocusValueOptions(i);
+  renderHeatmapLive();
+}
+function onFocusLevelValChange(i, val){
+  state.focusLevels[i].val = val.trim();
+  renderHeatmapLive();
+}
+async function loadFocusValueOptions(i){
+  const lvl = state.focusLevels[i];
+  const start = document.getElementById("dFrom").value, end = document.getElementById("dTo").value;
+  if(!lvl || !lvl.dim || !start || !end) return;
+  try{
+    const res = await postJSON("/api/dim_values", {dim: lvl.dim, start, end});
+    lvl.valOptions = res.values || [];
+  }catch(e){}
+}
+function currentFocusPath(){
+  if(state.analyzeMode!=="deep" || !state.focusLevels) return [];
+  return state.focusLevels.filter(l=>l.dim && l.val).map(l=>({dim:l.dim, val:l.val}));
+}
+
+function rowColAvailLabels(){
+  const used = state.analyzeMode==="deep" ? usedFocusDims() : new Set();
+  return state.dimsAvailable.filter(id=>!used.has(id)).map(id=>DIM_LABELS[id]||id);
+}
+function populateRowColOptions(){
+  const used = state.analyzeMode==="deep" ? usedFocusDims() : new Set();
+  const avail = state.dimsAvailable.filter(id=>!used.has(id));
+  const curRowId = dimIdFromLabel(document.getElementById("fRow").value);
+  const curColId = dimIdFromLabel(document.getElementById("fCol").value);
+  document.getElementById("fRow").value = avail.includes(curRowId) ? (DIM_LABELS[curRowId]||curRowId) : "";
+  document.getElementById("fCol").value = avail.includes(curColId) ? (DIM_LABELS[curColId]||curColId) : "";
+}
+attachCombo("fRow", rowColAvailLabels, ()=>renderHeatmapLive());
+attachCombo("fCol", rowColAvailLabels, ()=>renderHeatmapLive());
+let _heatAbort = null;
+async function renderHeatmapLive(){
+  const rowDim = dimIdFromLabel(document.getElementById("fRow").value);
+  const colDim = dimIdFromLabel(document.getElementById("fCol").value);
+  const metric = document.getElementById("fVal").value, mode = document.getElementById("fMode").value;
+  const start = document.getElementById("dFrom").value, end = document.getElementById("dTo").value;
+  const topN = parseInt(document.getElementById("fTopN").value, 10);
+  if(!rowDim || !colDim || !metric || !start || !end) return;
+  if(_heatAbort) _heatAbort.abort();
+  const myAbort = new AbortController();
+  _heatAbort = myAbort;
+  const isLive = state.source === "fabric_live";
+  document.getElementById("heatGrid").innerHTML = `<div class="cell corner"></div><div class="cell collab">${isLive?"Đang kéo trực tiếp từ Fabric…":"Đang tính…"}</div>`;
+  const focusPath = currentFocusPath();
+  let res;
+  const t0 = performance.now();
+  try{
+    if(isLive){
+      res = await postJSON("/api/fabric_live_analyze", {rowDim, colDim, metric, start, end, mode, topN}, myAbort.signal);
+    } else {
+      res = await postJSON("/api/analyze", {rowDim, colDim, metric, start, end, mode, topN, focusPath}, myAbort.signal);
+    }
+  }catch(e){
+    if(e.name === "AbortError") return; // bị huỷ vì người dùng đã đổi bộ lọc khác, không phải lỗi
+    document.getElementById("heatGrid").innerHTML = `<div class="cell corner"></div><div class="cell collab">Lỗi kết nối backend</div>`;
+    return;
+  }
+  if(res.error){ document.getElementById("heatGrid").innerHTML = `<div class="cell corner"></div><div class="cell collab" style="color:var(--red)">${res.error}</div>`; return; }
+  state.lastRes = res;
+  state.lastParams = {rowDim, colDim, metric, start, end, mode, focusPath};
+  drawHeat(res, metric, mode, rowDim, colDim);
+  if(isLive){
+    const roundTrip = Math.round(performance.now() - t0);
+    const pullTxt = res.fromCache ? "lấy từ bộ nhớ (kỳ này đã kéo trước đó)" : `kéo mất ${Math.round(res.pullMs)}ms`;
+    document.getElementById("loadedAtNote").innerHTML =
+      `<b style="color:var(--brand-dark)">Live:</b> ${pullTxt} · tổng round-trip ${roundTrip}ms (gồm cả tính toán + mạng)`;
+  }
+}
+function escAttr(s){
+  return String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+/* ---- ô "gõ để tìm" tự dựng: input#id + div#idMenu, thay cho input+datalist gốc trình duyệt.
+   getOptions() được gọi lại mỗi lần mở/gõ nên luôn phản ánh đúng state hiện tại. ---- */
+function attachCombo(inputId, getOptions, onPick){
+  const input = document.getElementById(inputId);
+  const menu = document.getElementById(inputId + "Menu");
+  if(!input || !menu) return;
+  let hiIdx = -1, justPicked = false;
+  function filtered(){
+    const q = (input.value||"").trim().toLowerCase();
+    const all = getOptions() || [];
+    return q ? all.filter(o=>String(o).toLowerCase().includes(q)) : all;
+  }
+  function draw(opts){
+    hiIdx = -1;
+    menu.innerHTML = opts.length
+      ? opts.map(o=>`<div class="combo-opt" data-v="${escAttr(o)}">${escAttr(o)}</div>`).join("")
+      : `<div class="combo-empty">Không có kết quả</div>`;
+    menu.classList.add("open");
+  }
+  function pick(v){
+    input.value = v;
+    justPicked = true;
+    menu.classList.remove("open");
+    onPick(v);
+  }
+  // Mở ô lên (focus/click) luôn hiện ĐỦ danh sách bất kể ô đang có sẵn giá trị gì — đúng lỗi
+  // "kẹt cứng ở giá trị đang gõ sẵn" của input+datalist gốc mà component này thay thế. Chỉ khi
+  // người dùng chủ động gõ thêm (input) mới lọc dần theo chữ đang gõ.
+  input.addEventListener("focus", ()=>{ input.select(); draw(getOptions()||[]); });
+  input.addEventListener("input", ()=>{ justPicked=false; draw(filtered()); });
+  input.addEventListener("keydown", (e)=>{
+    const items = Array.from(menu.querySelectorAll(".combo-opt"));
+    if(e.key==="ArrowDown"){ e.preventDefault(); hiIdx = Math.min(hiIdx+1, items.length-1); }
+    else if(e.key==="ArrowUp"){ e.preventDefault(); hiIdx = Math.max(hiIdx-1, 0); }
+    else if(e.key==="Enter"){ e.preventDefault(); if(hiIdx>=0 && items[hiIdx]) pick(items[hiIdx].dataset.v); else pick(input.value.trim()); return; }
+    else if(e.key==="Escape"){ menu.classList.remove("open"); input.blur(); return; }
+    else return;
+    items.forEach((it,idx)=>it.classList.toggle("hi", idx===hiIdx));
+    if(items[hiIdx]) items[hiIdx].scrollIntoView({block:"nearest"});
+  });
+  menu.addEventListener("mousedown", (e)=>{
+    const opt = e.target.closest(".combo-opt");
+    if(!opt) return;
+    e.preventDefault();
+    pick(opt.dataset.v);
+  });
+  input.addEventListener("blur", ()=>{
+    setTimeout(()=>{
+      menu.classList.remove("open");
+      if(!justPicked) onPick(input.value.trim());
+      justPicked = false;
+    }, 150);
+  });
+}
+document.getElementById("heatGrid").addEventListener("click", e=>{
+  const el = e.target.closest(".cell.clickable");
+  if(el) openDrilldown(el.dataset.row, el.dataset.col);
+});
+/* Ngưỡng LR cố định (không đổi theo min/max đang hiện) — khớp thang benchmark TLBT của DBV */
+const LR_BENCHMARK = [[0.60,"bm1"],[0.65,"bm2"],[0.70,"bm3"],[0.75,"bm4"],[0.85,"bm5"]]; // trên mốc cuối -> bm6
+function bucketLR(v){
+  for(const [th,cls] of LR_BENCHMARK) if(v < th) return cls;
+  return "bm6";
+}
+function drawHeat(res, metric, mode, rowDim, colDim){
+  const rows = res.rows, cols = res.cols, fmt = FMT[metric], useDelta = mode!=="current";
+  const useBenchmark = metric==="lr" && !useDelta;
+  const vals = [];
+  rows.forEach(r=>cols.forEach(c=>{
+    const cell = res.cells[r+"|"+c]; if(!cell) return;
+    const v = useDelta ? cell.delta : cell.value;
+    if(v!==null && v!==undefined && !Number.isNaN(v)) vals.push(v);
+  }));
+  const lo = vals.length?Math.min(...vals):0, hi = vals.length?Math.max(...vals):1;
+  function bucketRelative(v){
+    if(hi===lo) return "hv3";
+    const t = (v-lo)/(hi-lo);
+    if(t<0.2) return "hv1"; if(t<0.4) return "hv2"; if(t<0.6) return "hv3"; if(t<0.8) return "hv4"; return "hv5";
+  }
+  // So kỳ (YoY/MoM): giảm có thể là tốt hoặc xấu tuỳ chỉ số (vd LR giảm là tốt, Average Premium giảm
+  // là xấu) — không thể tô "giảm luôn xanh". Tách theo HIGHER_IS_WORSE rồi mới tô đậm/nhạt theo |delta|.
+  const maxAbsDelta = vals.length ? Math.max(...vals.map(Math.abs)) : 0;
+  function bucketDelta(d){
+    if(d===0 || maxAbsDelta===0) return "dz";
+    const worse = HIGHER_IS_WORSE[metric] !== false; // mặc định coi tăng là xấu nếu chỉ số lạ
+    const favorable = worse ? d < 0 : d > 0;
+    const t = Math.abs(d) / maxAbsDelta;
+    const level = t < 0.33 ? 1 : (t < 0.66 ? 2 : 3);
+    return (favorable ? "dg" : "db") + level;
+  }
+  const bucket = useBenchmark ? bucketLR : (useDelta ? bucketDelta : bucketRelative);
+  let html = `<div class="cell corner"></div>` + cols.map(c=>`<div class="cell collab" title="${escAttr(c)}">${c}</div>`).join("");
+  rows.forEach(r=>{
+    html += `<div class="cell rowlab" title="${escAttr(r)}">${r}</div>`;
+    cols.forEach(c=>{
+      const cell = res.cells[r+"|"+c];
+      if(!cell){ html += `<div class="cell" style="background:#f6f8fb;color:#b6bfcf">—</div>`; return; }
+      let display, cls;
+      if(!useDelta){
+        display = (cell.value===null||cell.value===undefined) ? "—" : fmt(cell.value);
+        cls = (cell.value===null||cell.value===undefined) ? "" : bucket(cell.value);
+      } else {
+        const d = cell.delta;
+        display = (d===null||d===undefined) ? "n/a" : (d>=0?"▲ ":"▼ ")+fmt(Math.abs(d));
+        cls = (d===null||d===undefined) ? "" : bucket(d);
+      }
+      html += `<div class="cell clickable ${cls}" data-row="${escAttr(r)}" data-col="${escAttr(c)}" title="Bấm để đào sâu">${display}</div>`;
+    });
+  });
+  document.getElementById("heatGrid").style.gridTemplateColumns = `140px repeat(${cols.length},1fr)`;
+  document.getElementById("heatGrid").innerHTML = html;
+  let legendHtml;
+  if(useBenchmark){
+    legendHtml = `<span class="sw" style="background:var(--brand-light)"></span>Dưới 60%
+      <span class="sw" style="background:var(--yellow-light)"></span>60–65%
+      <span class="sw" style="background:#ffe0b2"></span>65–70%
+      <span class="sw" style="background:#ffb066"></span>70–75%
+      <span class="sw" style="background:#f7a8a1"></span>75–85%
+      <span class="sw" style="background:#7a1f1f"></span>Trên 85% · ngưỡng cố định, không đổi theo dữ liệu đang hiện`;
+  } else if(useDelta){
+    legendHtml = `<span class="sw" style="background:#e2f4ec"></span><span class="sw" style="background:#9ed9bb"></span><span class="sw" style="background:#4a9f75"></span>Chuyển biến tốt (đậm = nhiều)
+      &nbsp;&nbsp;<span class="sw" style="background:#fdeaea"></span><span class="sw" style="background:#f0a49b"></span><span class="sw" style="background:#c93f3f"></span>Chuyển biến xấu (đậm = nhiều)
+      &nbsp;&nbsp;· xanh/đỏ xác định theo chiều tốt-xấu riêng của ${METRICS.find(m=>m.id===metric).name}, không theo tăng/giảm cố định`;
+  } else {
+    legendHtml = `<span class="sw" style="background:#e2f4ec"></span>Thấp <span class="sw" style="background:#fff0c8"></span> <span class="sw" style="background:#ffd9ab"></span> <span class="sw" style="background:#f7ada4"></span> <span class="sw" style="background:#df6b64"></span>Cao · theo khoảng giá trị đang hiện`;
+  }
+  document.getElementById("legend").innerHTML = legendHtml;
+  const p = res.portfolio;
+  const focusPath = currentFocusPath();
+  const focusLabel = focusPath.length ? focusPath.map(f=>`${DIM_LABELS[f.dim]||f.dim}: ${f.val}`).join(" × ") : null;
+  document.getElementById("kpiStrip").innerHTML = `
+    <div class="kpi"><small>Chỉ số đang xem</small><b>${METRICS.find(m=>m.id===metric).name}</b><span>${mode==="current"?"Kỳ hiện tại":mode==="yoy"?"So cùng kỳ năm trước":"So kỳ liền trước"}</span></div>
+    <div class="kpi"><small>${focusLabel?"Giá trị của đoạn đang đào sâu":"Giá trị toàn danh mục"}</small><b>${p.value!==null&&p.value!==undefined?fmt(p.value):"—"}</b><span>${focusLabel||"Toàn bộ dữ liệu trong kỳ đã lọc"}</span></div>
+    <div class="kpi"><small>Exposure (xe-năm)</small><b>${Math.round(p.exposure).toLocaleString("vi-VN")}</b><span>${p.claims.toLocaleString("vi-VN")} vụ bồi thường</span></div>
+    <div class="kpi"><small>Ma trận</small><b>${rows.length}×${cols.length}</b><span>${DIM_LABELS[rowDim]||rowDim} × ${DIM_LABELS[colDim]||colDim}</span></div>`;
+
+  const cov = res.coverage;
+  const note = document.getElementById("coverageNote");
+  if(cov && (cov.rowsShown<cov.rowsTotal || cov.colsShown<cov.colsTotal)){
+    note.style.color = "var(--amber)";
+    note.textContent = `Đang hiện ${cov.rowsShown}/${cov.rowsTotal} nhóm ${DIM_LABELS[rowDim]||rowDim} (phủ ${(cov.rowsCoverage*100).toFixed(0)}% doanh thu) `
+      + `× ${cov.colsShown}/${cov.colsTotal} nhóm ${DIM_LABELS[colDim]||colDim} (phủ ${(cov.colsCoverage*100).toFixed(0)}% doanh thu) — còn nhóm chưa hiện, đổi "Số nhóm hiển thị" để xem thêm.`;
+  } else if(cov){
+    note.style.color = "var(--green)";
+    note.textContent = `Đang hiện đủ toàn bộ ${cov.rowsTotal} nhóm ${DIM_LABELS[rowDim]||rowDim} × ${cov.colsTotal} nhóm ${DIM_LABELS[colDim]||colDim}.`;
+  } else {
+    note.textContent = "";
+  }
+}
+
+/* ---------------- drill-down ---------------- */
+const HIGHER_IS_WORSE = {lr:true, freq:true, sev:true, pp:true, avgprem:false, ae:true};
+
+function openHighestImpactSegment(){
+  const res = state.lastRes, params = state.lastParams;
+  if(!res){ alert("Chưa có heatmap để tìm segment — chọn bộ lọc trước."); return; }
+  const worse = HIGHER_IS_WORSE[params.metric] === false ? -1 : 1;
+  const useDelta = params.mode !== "current";
+  let totalExp = 0;
+  Object.values(res.cells).forEach(c => totalExp += (c.exposure || 0));
+  let best = null, bestScore = -Infinity;
+  for(const key in res.cells){
+    const c = res.cells[key];
+    const base = useDelta ? c.delta : ((c.value!==null && c.value!==undefined && res.portfolio.value!==null) ? c.value - res.portfolio.value : null);
+    if(base===null || base===undefined || Number.isNaN(base)) continue;
+    const weight = totalExp>0 ? (c.exposure||0)/totalExp : 0;
+    const score = weight * base * worse;
+    if(score > bestScore){ bestScore = score; best = key; }
+  }
+  if(!best){ alert("Không tìm được ô nào đủ dữ liệu để đào sâu."); return; }
+  const sep = best.indexOf("|");
+  openDrilldown(best.slice(0,sep), best.slice(sep+1));
+}
+
+async function openDrilldown(rowVal, colVal){
+  const params = state.lastParams;
+  if(!params) return;
+  state.ddSeg = {rowDim: params.rowDim, rowVal, colDim: params.colDim, colVal,
+                 focusPath: params.focusPath || [],
+                 start: params.start, end: params.end, metric: params.metric};
+  const overlay = document.getElementById("ddOverlay");
+  overlay.classList.add("open");
+  document.getElementById("ddTitle").textContent = `${DIM_LABELS[params.rowDim]||params.rowDim}: ${rowVal}  ×  ${DIM_LABELS[params.colDim]||params.colDim}: ${colVal}`;
+  document.getElementById("ddSub").textContent = `Chỉ số ${METRICS.find(m=>m.id===params.metric).name} · ${params.start} → ${params.end}`;
+  const isLive = state.source === "fabric_live";
+  document.getElementById("ddBody").innerHTML = isLive
+    ? `<div class="sub">Đang tính bằng Fabric (Live) — Khám phá nhanh quét từng chiều qua Fabric nên có thể mất 1-2 phút…</div>`
+    : `<div class="sub">Đang tính bằng engine…</div>`;
+
+  const endpoint = isLive ? "/api/fabric_live_drilldown" : "/api/drilldown";
+  let res;
+  try{
+    res = await postJSON(endpoint, {
+      rowDim: params.rowDim, colDim: params.colDim, rowVal, colVal,
+      metric: params.metric, start: params.start, end: params.end, mode: params.mode,
+      focusPath: params.focusPath || [],
+    });
+  }catch(e){
+    document.getElementById("ddBody").innerHTML = `<div class="sub" style="color:var(--red)">Lỗi kết nối backend.</div>`;
+    return;
+  }
+  if(res.error){
+    document.getElementById("ddBody").innerHTML = `<div class="sub" style="color:var(--red)">${res.error}</div>`;
+    return;
+  }
+  renderDrilldown(res, params.metric);
+}
+function closeDrilldown(){ document.getElementById("ddOverlay").classList.remove("open"); }
+document.getElementById("ddOverlay").addEventListener("click", e=>{ if(e.target.id==="ddOverlay") closeDrilldown(); });
+
+function bridgeSteps(bridge){
+  if(!bridge) return "";
+  const steps = [
+    {label:"Nền so sánh", val: bridge.lr0, kind:"base", delta:false},
+    {label:"Hiệu ứng Freq", val: bridge.dF, kind: bridge.dF>=0?"pos":"neg", delta:true},
+    {label:"Hiệu ứng Severity", val: bridge.dS, kind: bridge.dS>=0?"pos":"neg", delta:true},
+    {label:"Hiệu ứng Phí BQ", val: bridge.dAP, kind: bridge.dAP>=0?"pos":"neg", delta:true},
+    {label:"Đoạn đang xem", val: bridge.lr1, kind:"result", delta:false},
+  ];
+  return steps.map((s,i)=>{
+    const arrow = i>0 ? `<div class="bridge-arrow">→</div>` : "";
+    const display = s.delta ? (s.val>=0?"+":"") + (s.val*100).toFixed(1)+"đ" : (s.val*100).toFixed(1)+"%";
+    return arrow + `<div class="bridge-step ${s.kind}"><small>${s.label}</small><b>${display}</b></div>`;
+  }).join("");
+}
+
+/* Chia driver theo chiều tốt/xấu của CHÍNH chỉ số đang chọn — không cố định coi tăng là xấu.
+   impact backend trả về dương nghĩa là nhóm đó kéo chỉ số CAO hơn đoạn; favorable tuỳ HIGHER_IS_WORSE. */
+function splitDrivers(drivers, metric){
+  const worse = HIGHER_IS_WORSE[metric] !== false;
+  const bad = [], good = [];
+  drivers.forEach(d=>{
+    const pushesWorse = worse ? d.impact > 0 : d.impact < 0;
+    (pushesWorse ? bad : good).push(d);
+  });
+  bad.sort((a,b)=>Math.abs(b.impact)-Math.abs(a.impact));
+  good.sort((a,b)=>Math.abs(b.impact)-Math.abs(a.impact));
+  return {bad, good};
+}
+function driverRows(list, metric, emptyMsg){
+  const fmt = FMT[metric];
+  if(!list.length) return `<div class="sub">${emptyMsg}</div>`;
+  const maxAbs = Math.max(...list.map(d=>Math.abs(d.impact))) || 1;
+  const head = `<div class="driver-row head"><div>Nhóm</div><div></div><div style="text-align:right">Giá trị nhóm</div><div style="text-align:right">% nền so sánh</div><div>Mức đóng góp</div><div style="text-align:right">Hồ sơ</div></div>`;
+  const rows = list.map(d=>{
+    const barPct = Math.min(100, Math.abs(d.impact)/maxAbs*100);
+    const lowSample = d.claims < 15 ? `<span class="driver-lowsample" title="Mẫu nhỏ, dễ là cờ giả">⚠ nhỏ</span>` : "";
+    return `<div class="driver-row">
+      <div class="driver-cell-group"><b>${d.category}</b><small>${d.dimLabel}</small></div>
+      <div></div>
+      <div class="num">${fmt(d.metricValue)}</div>
+      <div class="num">${(d.shareBase*100).toFixed(1)}%</div>
+      <div class="driver-bar-wrap"><div class="driver-bar" style="width:${barPct}%"></div></div>
+      <div><div class="num">${d.claims}</div>${lowSample}</div>
+    </div>`;
+  }).join("");
+  return `<div class="driver-table">${head}${rows}</div>`;
+}
+function renderDriverTabs(drivers, metric){
+  const {bad, good} = splitDrivers(drivers, metric);
+  return {
+    html: `
+      <div class="dd-tabs">
+        <div class="dd-tab active bad" id="ddTabBad" onclick="switchDriverTab('bad')">Kéo xấu đi (${bad.length})</div>
+        <div class="dd-tab good" id="ddTabGood" onclick="switchDriverTab('good')">Kéo tốt lên (${good.length})</div>
+      </div>
+      <div id="ddTabBadBody">${driverRows(bad, metric, "Không có nhóm nào đủ mẫu kéo chỉ số theo hướng xấu đi.")}</div>
+      <div id="ddTabGoodBody" style="display:none">${driverRows(good, metric, "Không có nhóm nào đủ mẫu kéo chỉ số theo hướng tốt lên.")}</div>`,
+  };
+}
+function switchDriverTab(which){
+  document.getElementById("ddTabBad").classList.toggle("active", which==="bad");
+  document.getElementById("ddTabGood").classList.toggle("active", which==="good");
+  document.getElementById("ddTabBadBody").style.display = which==="bad" ? "" : "none";
+  document.getElementById("ddTabGoodBody").style.display = which==="good" ? "" : "none";
+}
+
+/* Tỷ trọng exposure của ô so với TỔNG THEO HÀNG và TỔNG THEO CỘT của chính ma trận đang hiện —
+   không so với toàn danh mục (heatmap có thể chỉ đang hiện Top N, không phải toàn bộ chiều). */
+function cellShareOfRowCol(rowVal, colVal){
+  const res = state.lastRes;
+  if(!res) return {rowPct:null, colPct:null};
+  let rowTotal = 0, colTotal = 0;
+  // rowTotal: cộng dồn TRÊN CÙNG MỘT HÀNG (rowVal cố định) qua mọi cột — phải lặp res.cols.
+  res.cols.forEach(c=>{ const cell = res.cells[rowVal+"|"+c]; if(cell) rowTotal += cell.exposure||0; });
+  // colTotal: cộng dồn TRÊN CÙNG MỘT CỘT (colVal cố định) qua mọi hàng — phải lặp res.rows.
+  res.rows.forEach(r=>{ const cell = res.cells[r+"|"+colVal]; if(cell) colTotal += cell.exposure||0; });
+  const cell = res.cells[rowVal+"|"+colVal];
+  const exp = cell ? (cell.exposure||0) : 0;
+  return {rowPct: rowTotal?exp/rowTotal:null, colPct: colTotal?exp/colTotal:null};
+}
+
+function renderDrilldown(res, metric){
+  const fmt = FMT[metric];
+  const m = res.metrics, p = res.portfolio;
+  const seg = state.ddSeg;
+  const share = cellShareOfRowCol(seg.rowVal, seg.colVal);
+  const kpi = `
+    <div class="dd-kpi-strip">
+      <div class="kpi"><small>${METRICS.find(x=>x.id===metric).name} đoạn này</small><b>${fmt(m[metric])}</b><span>so với toàn danh mục ${fmt(p[metric])}</span></div>
+      <div class="kpi"><small>Exposure (xe-năm)</small><b>${Math.round(m.exposure).toLocaleString("vi-VN")}</b><span>${m.claims.toLocaleString("vi-VN")} vụ bồi thường</span></div>
+      <div class="kpi"><small>Tỷ trọng exposure</small><b style="font-size:15px">Chiếm ${share.rowPct!==null?(share.rowPct*100).toFixed(0)+"%":"—"} theo chiều ngang, ${share.colPct!==null?(share.colPct*100).toFixed(0)+"%":"—"} theo chiều dọc</b><span>trong ${DIM_LABELS[seg.rowDim]||seg.rowDim} (ngang) và ${DIM_LABELS[seg.colDim]||seg.colDim} (dọc)</span></div>
+      <div class="kpi"><small>Incurred đoạn này</small><b>${(m.incurred/1e9).toFixed(2)} tỷ</b><span>${p.incurred ? (m.incurred/p.incurred*100).toFixed(1)+"% toàn danh mục" : ""}</span></div>
+    </div>`;
+
+  const bridgeBlock = res.bridgeVsPortfolio ? `
+    <div class="card" style="padding:16px">
+      <h3>Vì sao đoạn này khác trung bình toàn danh mục</h3>
+      <div class="sub" style="margin-bottom:10px">Phân rã theo đúng phương pháp bridge F→S→AP đang dùng trong pipeline báo cáo (engine.bridge) — là phép tính đại số khớp tuyệt đối với chênh lệch LR thật, không phải diễn giải.</div>
+      <div class="bridge-wrap">${bridgeSteps(res.bridgeVsPortfolio)}</div>
+    </div>` : `<div class="card" style="padding:16px"><div class="sub">Không đủ dữ liệu (Average Premium = 0) để phân rã bridge cho đoạn này.</div></div>`;
+
+  let prevBlock = "";
+  if(res.prevPeriod && res.prevPeriod.bridgeVsPrev){
+    const pp = res.prevPeriod;
+    prevBlock = `
+      <div class="card" style="padding:16px">
+        <h3>So với chính đoạn này ở kỳ trước (${pp.period[0]} → ${pp.period[1]})</h3>
+        <div class="bridge-wrap">${bridgeSteps(pp.bridgeVsPrev)}</div>
+      </div>`;
+  }
+
+  state.ddDrivers = res.drivers;
+  initDsState(seg, metric);
+  const driversBlock = `
+    <div class="card" style="padding:16px">
+      <h3>Yếu tố nào bên trong đoạn này kéo ${METRICS.find(x=>x.id===metric).name} đi lệch nhiều nhất</h3>
+      <div class="sub" style="margin-bottom:6px">Quét toàn bộ chiều còn lại, xếp theo mức đóng góp = tỷ trọng nền so sánh trong đoạn × (giá trị nhóm con − giá trị cả đoạn) — cùng công thức "within effect" engine đang dùng ở mix_within, tính theo đúng chỉ số đang chọn ở heatmap. Bỏ nhóm dưới 5 hồ sơ để tránh cờ giả do mẫu quá nhỏ.</div>
+      <div class="dd-tabs">
+        <div class="dd-tab active" id="ddMainTabDeep" onclick="switchDdMainTab('deep')">Đào sâu</div>
+        <div class="dd-tab" id="ddMainTabQuick" onclick="switchDdMainTab('quick')">Khám phá nhanh</div>
+      </div>
+      <div id="ddMainBody"></div>
+      <button class="btn primary dd-decomp-btn" onclick="openDecomp()">🌳 Decomposition Tree — bóc tách tiếp theo nhiều chiều</button>
+    </div>`;
+
+  document.getElementById("ddBody").innerHTML = kpi + bridgeBlock + prevBlock + driversBlock;
+  switchDdMainTab("deep");
+}
+function switchDdMainTab(which){
+  document.getElementById("ddMainTabDeep").classList.toggle("active", which==="deep");
+  document.getElementById("ddMainTabQuick").classList.toggle("active", which==="quick");
+  if(which==="quick"){
+    document.getElementById("ddMainBody").innerHTML = renderDriverTabs(state.ddDrivers, state.ds.metric).html;
+  } else {
+    document.getElementById("ddMainBody").innerHTML = dsShellHtml();
+    dsRenderAll();
+  }
+}
+
+/* ---------------- "Đào sâu" mặc định: các chuỗi phân cấp cố định cho câu hỏi nghiệp vụ quen thuộc,
+   trình bày kiểu bảng liền kê để show đủ chỉ số, mở rộng theo bậc ---------------- */
+const DS_LENSES = [
+  {id:"donvi",     label:"Đơn vị",                chain:["donvi","phongkd","canbokt"]},
+  {id:"kenh",      label:"Kênh khai thác",        chain:["kenh","doitac","diemban"]},
+  {id:"mucdich",   label:"Mục đích sử dụng xe",   chain:["mucdich","daigiatri"]},
+  {id:"hangxe",    label:"Hãng xe",               chain:["hangxe","dongxe",null]},
+  {id:"nhommucdo", label:"Nhóm mức độ tổn thất",  chain:["nhommucdo","nhomgara","garatt"]},
+];
+const DS_HANGXE_L3_OPTS = [
+  {id:"sochongoi", label:"Số chỗ ngồi"}, {id:"dongco", label:"Động cơ"}, {id:"diaban", label:"Địa bàn hoạt động"},
+];
+const DS_TOP_N = 5;
+function initDsState(seg, metric){
+  state.ds = {
+    basePath: buildInitialDecompPath(seg).map(x=>({dim:x.dim, val:x.val})),
+    metric, start: seg.start, end: seg.end, dir: "bad",
+    hangxeL3: (state.ds && state.ds.hangxeL3) || "sochongoi",
+    nodes: {}, open: new Set(),
+  };
+}
+function dsSplitDimFor(lens, pairs){
+  const d = lens.chain[pairs.length];
+  return d===null ? state.ds.hangxeL3 : d;
+}
+function dsNodeKey(lensId, pairs){ return lensId + "::" + pairs.map(p=>p.dim+"="+p.val).join("///"); }
+function dsShellHtml(){
+  const lenses = DS_LENSES.map(lens=>{
+    const extra = lens.id==="hangxe" ? `<select class="ds-lens-l3" onchange="onHangxeL3Change(this.value)">
+        ${DS_HANGXE_L3_OPTS.map(o=>`<option value="${o.id}" ${o.id===state.ds.hangxeL3?"selected":""}>${o.label}</option>`).join("")}
+      </select>` : "";
+    return `<div class="ds-lens">
+      <div class="ds-lens-head"><span>${lens.label}</span>${extra}</div>
+      <div class="ds-lens-body" id="dsLens_${lens.id}"><div class="ds-loading">Đang tải…</div></div>
+    </div>`;
+  }).join("");
+  return `<div id="dsBody" data-dir="${state.ds.dir}">
+    <div class="dd-tabs">
+      <div class="dd-tab ${state.ds.dir==='bad'?'active bad':''}" id="dsTabBad" onclick="switchDsDir('bad')">Kéo xấu đi</div>
+      <div class="dd-tab ${state.ds.dir==='good'?'active good':''}" id="dsTabGood" onclick="switchDsDir('good')">Kéo tốt lên</div>
+    </div>
+    <div class="ds-stack">${lenses}</div>
+  </div>`;
+}
+function switchDsDir(dir){
+  state.ds.dir = dir;
+  document.getElementById("dsBody").dataset.dir = dir;
+  document.getElementById("dsTabBad").classList.toggle("active", dir==="bad");
+  document.getElementById("dsTabBad").classList.toggle("bad", dir==="bad");
+  document.getElementById("dsTabGood").classList.toggle("active", dir==="good");
+  document.getElementById("dsTabGood").classList.toggle("good", dir==="good");
+  dsRenderAll();
+}
+function onHangxeL3Change(v){
+  state.ds.hangxeL3 = v;
+  Object.keys(state.ds.nodes).forEach(k=>{ if(k.startsWith("hangxe::") && k.split("::")[1].split("///").filter(Boolean).length>=2) delete state.ds.nodes[k]; });
+  dsRenderAll();
+}
+function dsRenderAll(){
+  if(!state.ds) return;
+  DS_LENSES.forEach(lens=>{
+    const el = document.getElementById(`dsLens_${lens.id}`);
+    if(el) el.innerHTML = dsRenderRows(lens, [], 0);
+  });
+}
+function dsRenderRows(lens, pairs, depth){
+  const key = dsNodeKey(lens.id, pairs);
+  const node = state.ds.nodes[key];
+  if(!node){ dsLoadNode(lens, pairs); return `<div class="ds-loading">Đang tải…</div>`; }
+  if(node.loading) return `<div class="ds-loading">Đang tải…</div>`;
+  if(node.error) return `<div class="ds-empty" style="color:var(--red)">${node.error}</div>`;
+  const {bad, good} = splitDrivers(node.candidates, state.ds.metric);
+  const list = (state.ds.dir==="bad" ? bad : good).slice(0, DS_TOP_N);
+  if(!list.length) return `<div class="ds-empty">Không có nhóm nào theo hướng đang chọn ở bậc này.</div>`;
+  const fmt = FMT[state.ds.metric];
+  const isLeaf = depth >= lens.chain.length - 1;
+  const maxAbs = Math.max(...list.map(c=>Math.abs(c.impact))) || 1;
+  // Chỉ hiện header cột ở bậc gốc — lặp lại header mỗi bậc con làm bảng con trông như một bảng độc lập
+  // ngang hàng bảng cha, gây cảm giác không phải đang đào sâu. Bậc càng sâu chữ càng nhỏ, tên nhóm bớt
+  // nổi bật (không in đậm/màu nhạt hơn) để mắt phân biệt được đang ở bậc nào.
+  const head = depth===0 ? `<div class="driver-row head"><div>Nhóm</div><div></div><div style="text-align:right">Giá trị nhóm</div><div style="text-align:right">% nền so sánh</div><div>Mức đóng góp</div><div style="text-align:right">Hồ sơ</div></div>` : "";
+  const fontPx = Math.max(10.5, 12.5 - depth*0.7);
+  const nameStyle = depth===0 ? "font-weight:800" : "font-weight:600;color:var(--muted)";
+  const rows = list.map(c=>{
+    const childPairs = pairs.concat([{dim:c.dim, val:c.category}]);
+    const childKey = dsNodeKey(lens.id, childPairs);
+    const isOpen = state.ds.open.has(childKey);
+    const barPct = Math.min(100, Math.abs(c.impact)/maxAbs*100);
+    const lowSample = c.claims < 15 ? `<span class="driver-lowsample" title="Mẫu nhỏ, dễ là cờ giả">⚠ nhỏ</span>` : "";
+    const caret = isLeaf ? `<span class="ds-caret-spacer"></span>` : `<span class="ds-caret${isOpen?" open":""}">▸</span>`;
+    const toggleAttr = isLeaf ? "" : ` data-toggle="${escAttr(childKey)}"`;
+    const row = `<div class="driver-row${isLeaf?"":" ds-clickable"}"${toggleAttr} style="padding-left:${12+depth*16}px;font-size:${fontPx}px">
+        <div class="driver-cell-group"><div style="display:flex;align-items:center;gap:6px">${caret}<b style="${nameStyle}">${escAttr(c.category)}</b></div><small>${escAttr(c.dimLabel)}</small></div>
+        <div></div>
+        <div class="num">${fmt(c.metricValue)}</div>
+        <div class="num">${(c.shareBase*100).toFixed(1)}%</div>
+        <div class="driver-bar-wrap"><div class="driver-bar" style="width:${barPct}%"></div></div>
+        <div><div class="num">${c.claims}</div>${lowSample}</div>
+      </div>`;
+    const childHtml = isOpen ? `<div class="ds-children">${dsRenderRows(lens, childPairs, depth+1)}</div>` : "";
+    return row + childHtml;
+  }).join("");
+  return `<div class="driver-table">${head}${rows}</div>`;
+}
+async function dsLoadNode(lens, pairs){
+  const key = dsNodeKey(lens.id, pairs);
+  if(state.ds.nodes[key]) return;
+  state.ds.nodes[key] = {loading:true};
+  const path = state.ds.basePath.concat(pairs);
+  const splitDim = dsSplitDimFor(lens, pairs);
+  const endpoint = state.source === "fabric_live" ? "/api/fabric_live_decompose" : "/api/decompose";
+  try{
+    const res = await postJSON(endpoint, {path, splitDim, metric: state.ds.metric, start: state.ds.start, end: state.ds.end});
+    state.ds.nodes[key] = res.error ? {error: res.error} : {candidates: res.candidates || []};
+  }catch(e){
+    state.ds.nodes[key] = {error: "Lỗi kết nối backend."};
+  }
+  dsRenderAll();
+}
+document.getElementById("ddBody").addEventListener("click", e=>{
+  const t = e.target.closest(".driver-row[data-toggle]");
+  if(!t) return;
+  const key = t.dataset.toggle;
+  if(state.ds.open.has(key)) state.ds.open.delete(key); else state.ds.open.add(key);
+  dsRenderAll();
+});
+
+/* ---------------- Decomposition Tree ---------------- */
+function buildInitialDecompPath(seg){
+  const path = (seg.focusPath||[]).map(f=>({dim:f.dim, label:DIM_LABELS[f.dim]||f.dim, val:f.val}));
+  path.push({dim:seg.rowDim, label:DIM_LABELS[seg.rowDim]||seg.rowDim, val:seg.rowVal});
+  path.push({dim:seg.colDim, label:DIM_LABELS[seg.colDim]||seg.colDim, val:seg.colVal});
+  return path;
+}
+async function openDecomp(){
+  const seg = state.ddSeg;
+  if(!seg) return;
+  state.decomp = {path: buildInitialDecompPath(seg), metric: seg.metric, start: seg.start, end: seg.end, splitDim: null};
+  document.getElementById("decompOverlay").classList.add("open");
+  await loadDecompNode();
+}
+function closeDecomp(){ document.getElementById("decompOverlay").classList.remove("open"); }
+document.getElementById("decompOverlay").addEventListener("click", e=>{ if(e.target.id==="decompOverlay") closeDecomp(); });
+
+async function loadDecompNode(){
+  const st = state.decomp;
+  document.getElementById("decompBody").innerHTML = `<div class="sub">Đang tính…</div>`;
+  const endpoint = state.source === "fabric_live" ? "/api/fabric_live_decompose" : "/api/decompose";
+  let res;
+  try{
+    res = await postJSON(endpoint, {
+      path: st.path.map(p=>({dim:p.dim, val:p.val})),
+      metric: st.metric, start: st.start, end: st.end, splitDim: st.splitDim,
+    });
+  }catch(e){
+    document.getElementById("decompBody").innerHTML = `<div class="sub" style="color:var(--red)">Lỗi kết nối backend.</div>`;
+    return;
+  }
+  if(res.error){
+    document.getElementById("decompBody").innerHTML = `<div class="sub" style="color:var(--red)">${res.error}</div>`;
+    return;
+  }
+  renderDecompNode(res);
+}
+
+function renderDecompNode(res){
+  const st = state.decomp;
+  const fmt = FMT[st.metric];
+  document.getElementById("decompTitle").textContent = st.path.map(p=>`${p.label}: ${p.val}`).join("  ×  ");
+  document.getElementById("decompSub").textContent = `${METRICS.find(m=>m.id===st.metric).name} · ${st.start} → ${st.end}`;
+
+  const crumbs = `<div class="decomp-crumbs">` + st.path.map((p,i)=>{
+    const isLast = i===st.path.length-1;
+    return (i>0?`<span class="decomp-arrow">→</span>`:"") +
+      `<span class="decomp-crumb${isLast?" current":""}" data-back="${i+1}" title="${escAttr(p.label)}">${escAttr(p.val)}</span>`;
+  }).join("") + `</div>`;
+
+  const metricBlock = `<div class="decomp-metric"><small>${METRICS.find(m=>m.id===st.metric).name} của đoạn này</small><b>${fmt(res.metrics[st.metric])}</b></div>`;
+
+  state.decomp.availableDims = res.availableDims;
+  const splitRow = `<div class="decomp-split-row">
+    <span class="sub">Bóc tách theo chiều:</span>
+    <div class="combo-wrap"><input type="text" id="decompSplitSel" placeholder="Gõ để tìm chiều…" autocomplete="off"
+      value="${escAttr(DIM_LABELS[st.splitDim]||"")}"><div class="combo-menu" id="decompSplitSelMenu"></div></div>
+  </div>`;
+
+  let listBlock = "";
+  if(st.splitDim && res.candidates){
+    listBlock = decompCandidateRows(res.candidates, st.metric);
+  } else if(!res.availableDims.length){
+    listBlock = `<div class="sub">Đã dùng hết mọi chiều sẵn có, không bóc tách thêm được nữa.</div>`;
+  }
+
+  const detailBlock = `
+    <div class="card" style="padding:16px;margin-top:14px">
+      <div class="pipe-row" style="justify-content:space-between">
+        <h3 style="margin:0">Hồ sơ trong đoạn này</h3>
+        <button class="btn ghost sm" onclick="exportDecompExcel()">⬇ Xuất Excel</button>
+      </div>
+      <div class="sub" id="decompDetailNote" style="margin:6px 0 8px">Đang tải…</div>
+      <div id="decompDetailTable"></div>
+    </div>`;
+
+  document.getElementById("decompBody").innerHTML = crumbs + metricBlock + splitRow + listBlock + detailBlock;
+  attachCombo("decompSplitSel", ()=> (state.decomp.availableDims||[]).map(id=>DIM_LABELS[id]||id), (v)=>{
+    state.decomp.splitDim = dimIdFromLabel(v) || null;
+    loadDecompNode();
+  });
+  loadDecompDetail();
+}
+
+async function loadDecompDetail(){
+  const st = state.decomp;
+  const myPath = st.path.map(p=>({dim:p.dim, val:p.val}));
+  const endpoint = state.source === "fabric_live" ? "/api/fabric_live_decompose_detail" : "/api/decompose_detail";
+  let res;
+  try{
+    res = await postJSON(endpoint, {path: myPath, start: st.start, end: st.end});
+  }catch(e){
+    const note = document.getElementById("decompDetailNote");
+    if(note) note.textContent = "Lỗi kết nối backend.";
+    return;
+  }
+  // Người dùng có thể đã bấm sang nấc khác trong lúc chờ — chỉ vẽ nếu vẫn còn đúng khung của node này.
+  const note = document.getElementById("decompDetailNote");
+  if(!note) return;
+  if(res.error){ note.textContent = res.error; return; }
+  note.textContent = `Hiện ${res.shown}/${res.total.toLocaleString("vi-VN")} hồ sơ (xếp theo Incurred giảm dần) · `
+    + `tổng Incurred đoạn này ${(res.incurredTotal/1e9).toFixed(2)} tỷ`;
+  document.getElementById("decompDetailTable").innerHTML = decompDetailRows(res.rows);
+}
+function decompDetailRows(rows){
+  if(!rows.length) return `<div class="sub">Không có hồ sơ nào trong đoạn này.</div>`;
+  const head = `<div class="decomp-row head" style="grid-template-columns:1.3fr 1.3fr 1fr 1fr">
+    <div>Số hồ sơ</div><div>Số hợp đồng</div><div style="text-align:right">Ngày tổn thất</div><div style="text-align:right">Incurred</div></div>`;
+  const body = rows.map(r=>`<div class="decomp-row" style="grid-template-columns:1.3fr 1.3fr 1fr 1fr;cursor:default">
+    <div>${escAttr(r.soHoSo)}</div><div>${escAttr(r.soHopDong)}</div>
+    <div class="num">${r.ngayTonThat}</div><div class="num">${(r.incurred/1e6).toFixed(2)} tr</div>
+  </div>`).join("");
+  return `<div class="driver-table">${head}${body}</div>`;
+}
+function exportDecompExcel(){
+  const st = state.decomp;
+  const path = st.path.map(p=>({dim:p.dim, val:p.val}));
+  const params = new URLSearchParams({start: st.start, end: st.end, path: JSON.stringify(path)});
+  const endpoint = state.source === "fabric_live" ? "/api/fabric_live_decompose_export" : "/api/decompose_export";
+  window.location.href = endpoint + "?" + params.toString();
+}
+
+function decompCandidateRows(candidates, metric){
+  const fmt = FMT[metric];
+  if(!candidates.length) return `<div class="sub">Không có nhóm nào đủ mẫu (≥5 hồ sơ) trong chiều này.</div>`;
+  const worse = HIGHER_IS_WORSE[metric] !== false;
+  const maxAbs = Math.max(...candidates.map(c=>Math.abs(c.impact))) || 1;
+  const head = `<div class="decomp-row head"><div>Nhóm</div><div style="text-align:right">Giá trị</div><div>Mức đóng góp</div><div style="text-align:right">Hồ sơ</div></div>`;
+  const rows = candidates.map(c=>{
+    const pushesWorse = worse ? c.impact>0 : c.impact<0;
+    const barPct = Math.min(100, Math.abs(c.impact)/maxAbs*100);
+    const barColor = pushesWorse ? "var(--red)" : "var(--green)";
+    return `<div class="decomp-row" data-dim="${escAttr(c.dim)}" data-label="${escAttr(c.dimLabel)}" data-val="${escAttr(c.category)}">
+      <div><b>${c.category}</b></div>
+      <div class="num">${fmt(c.metricValue)}</div>
+      <div class="decomp-bar-wrap"><div class="decomp-bar" style="width:${barPct}%;background:${barColor}"></div></div>
+      <div class="num">${c.claims}</div>
+    </div>`;
+  }).join("");
+  return `<div class="driver-table">${head}${rows}</div>`;
+}
+document.getElementById("decompBody").addEventListener("click", e=>{
+  const back = e.target.closest(".decomp-crumb[data-back]");
+  if(back){ decompBack(parseInt(back.dataset.back, 10)); return; }
+  const row = e.target.closest(".decomp-row:not(.head)");
+  if(row && row.dataset.dim) decompDrillInto(row.dataset.dim, row.dataset.label, row.dataset.val);
+});
+
+function decompDrillInto(dim, label, val){
+  state.decomp.path.push({dim, label, val});
+  state.decomp.splitDim = null;
+  loadDecompNode();
+}
+function decompBack(len){
+  state.decomp.path = state.decomp.path.slice(0, len);
+  state.decomp.splitDim = null;
+  loadDecompNode();
+}
+</script>
+</body>
+</html>

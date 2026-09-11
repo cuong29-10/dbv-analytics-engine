@@ -1,0 +1,14 @@
+# Repo riêng cho bản web: chỉ code. Dữ liệu, token, cấu hình theo máy và build .exe không lên GitHub.
+__pycache__/
+*.pyc
+data/
+build/
+dist/
+*.spec
+*.parquet
+fabric_config.json
+fabric_token_cache.bin
+fabric_login_flow.json
+sync_token.txt
+sync_config.json
+*.log
