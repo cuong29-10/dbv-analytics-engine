@@ -7,7 +7,7 @@ lại công thức ở đây. Hai nguồn dữ liệu:
     -> nạp thẳng, không làm lại việc lọc VCX / gộp CGQ-DGQ / chuẩn hoá chiều mà p1+p2 đã làm.
 
 Chạy: py -3.13 server.py   (mở http://localhost:8787)
-Lên host (Render...): đặt PORT, DBV_BASE_URL=https://<domain>, FABRIC_TENANTID/CLIENTID/WORKSPACEID/DATASETID.
+FABRIC_TENANTID/CLIENTID/WORKSPACEID/DATASETID (biến môi trường) ghi đè fabric_config.json nếu cần.
 """
 import io
 import json
